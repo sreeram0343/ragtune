@@ -1,6 +1,7 @@
 # RAGTUNE - Enterprise Knowledge Intelligence Platform
 
 ![RAGTUNE Platform](https://img.shields.io/badge/RAGTUNE-Enterprise%20v1.0-6366F1?style=for-the-badge)
+![Intent Router](https://img.shields.io/badge/Intent%20Router-Dynamic%20Planner-10B981?style=for-the-badge)
 ![LangGraph Orchestration](https://img.shields.io/badge/Orchestration-LangGraph%20StateGraph-10B981?style=for-the-badge)
 ![Intelligent Cache](https://img.shields.io/badge/Intelligent%20Cache-L1--L2%20Multi--Tier-10B981?style=for-the-badge)
 ![Input Security Pipeline](https://img.shields.io/badge/Input%20Security-8--Stage%20Defense-10B981?style=for-the-badge)
@@ -11,7 +12,7 @@
 
 RAGTUNE is a domain-agnostic Enterprise Knowledge Intelligence Platform engineered for organizations to query, reason, and execute evidence-backed decisions across structured SQL databases and unstructured enterprise documents.
 
-Unlike simple conversational chatbots, RAGTUNE is a deterministic, secure, and transparent intelligence platform combining multi-agent orchestration, Text-to-SQL synthesis, hybrid retrieval, an 8-stage Input Security Pipeline, an Intelligent Multi-Layer Caching System, a 9-layer Guardrails system, Explainable AI (XAI) execution tracing, and Human-in-the-Loop (HITL) approval workflows.
+Unlike simple conversational chatbots, RAGTUNE is a deterministic, secure, and transparent intelligence platform combining an Intent Router and Query Planning Engine, multi-agent orchestration, Text-to-SQL synthesis, hybrid retrieval, an 8-stage Input Security Pipeline, an Intelligent Multi-Layer Caching System, a 9-layer Guardrails system, Explainable AI (XAI) execution tracing, and Human-in-the-Loop (HITL) approval workflows.
 
 ![RAGTUNE Dashboard Interface](docs/images/dashboard.png)
 
@@ -19,6 +20,7 @@ Unlike simple conversational chatbots, RAGTUNE is a deterministic, secure, and t
 
 ## Table of Contents
 - [Platform Architecture](#platform-architecture)
+- [Intent Router & Query Planning Engine](#intent-router--query-planning-engine)
 - [Workflow Orchestration Engine](#workflow-orchestration-engine)
 - [Intelligent Caching System](#intelligent-caching-system)
 - [Input Security Pipeline](#input-security-pipeline)
@@ -33,7 +35,7 @@ Unlike simple conversational chatbots, RAGTUNE is a deterministic, secure, and t
 
 ## Platform Architecture
 
-RAGTUNE is built around an event-driven multi-agent state machine powered by LangGraph. All incoming user requests pass through a centralized Input Security Pipeline and an Intelligent Multi-Layer Cache before entering the central Workflow Orchestration Engine.
+RAGTUNE is built around an event-driven multi-agent state machine powered by LangGraph. All incoming user requests pass through a centralized Input Security Pipeline, an Intelligent Multi-Layer Cache, and an Intent Router before entering the central Workflow Orchestration Engine.
 
 ![RAGTUNE Platform Architecture](docs/images/architecture.png)
 
@@ -44,13 +46,17 @@ graph TD
     SecurityPipeline --> CacheManager[Intelligent Multi-Layer Cache Manager]
     
     CacheManager -- L1/L2 Cache Hit (0.1ms) --> Client
-    CacheManager -- Cache Miss --> OrchestrationEngine[LangGraph Workflow Orchestration Engine]
+    CacheManager -- Cache Miss --> IntentRouter[Intent Router & Query Planning Engine]
     
-    OrchestrationEngine --> Router[Intent & Policy Router Node]
+    IntentRouter --> Registry[Dynamic Capability Registry]
+    IntentRouter --> PlanGenerator[Execution Plan Generator]
     
-    Router -->|Structured Query| SQLAgent[Text-to-SQL Engine Node]
-    Router -->|Unstructured Query| RAGAgent[Hybrid RAG Engine Node]
-    Router -->|Hybrid Query| FusionAgent[Evidence Fusion Engine Node]
+    PlanGenerator --> ExecPlan[Structured Execution Plan Model]
+    ExecPlan --> OrchestrationEngine[LangGraph Workflow Orchestration Engine]
+    
+    OrchestrationEngine -->|Structured Query| SQLAgent[Text-to-SQL Engine Node]
+    OrchestrationEngine -->|Unstructured Query| RAGAgent[Hybrid RAG Engine Node]
+    OrchestrationEngine -->|Hybrid Query| FusionAgent[Evidence Fusion Engine Node]
     
     SQLAgent --> EvaluationNode[Validation & Quality Evaluation Node]
     RAGAgent --> EvaluationNode
@@ -68,9 +74,42 @@ graph TD
 
 ---
 
+## Intent Router & Query Planning Engine
+
+The Intent Router and Query Planning Engine (`router/`) acts as the decision-making brain of the platform. Rather than executing query tools directly, it analyzes user intent, discovers available platform capabilities, evaluates cost and latency trade-offs, and outputs a structured **Execution Plan** (`ExecutionPlan`).
+
+```mermaid
+sequenceDiagram
+    participant Request as Input Request
+    participant Classifier as Intent Classifier
+    participant Registry as Capability Registry
+    participant Decision as Decision Strategy Engine
+    participant Planner as Plan Generator
+    participant ExecPlan as Structured ExecutionPlan
+
+    Request->>Classifier: Analyze Natural Language Query & SecurityContext
+    Classifier->>Classifier: Determine Intent Category & Confidence
+    Classifier->>Registry: Discover Compatible Platform Capabilities
+    Registry-->>Decision: Capabilities List + Cost/Latency Metrics
+    Decision->>Decision: Apply Strategy (Cost, Latency, Policy, Risk)
+    Decision->>Planner: Selected Capabilities & Execution Sequence
+    Planner->>ExecPlan: Build ExecutionPlan (Stages, Parallel Tasks, Est. Cost)
+    ExecPlan-->>Request: Return Validated ExecutionPlan for LangGraph Engine
+```
+
+### Core Planning Subsystems:
+1. **Domain Models (`router/domain.py`)**: Intent categories (`STRUCTURED_SQL`, `UNSTRUCTURED_RAG`, `HYBRID_ANALYTICS`, `POLICY_LOOKUP`, `SUMMARIZATION`, `RESEARCH`, `ADMINISTRATIVE`) and planning strategies (`LOW_LATENCY`, `BALANCED`, `MAX_ACCURACY`, `COST_MINIMIZED`).
+2. **Dynamic Capability Registry (`router/registry.py`)**: Discoverable registry of platform tools (Vector RAG, BM25, Text-to-SQL, Analytics Engine, Summarizer, HITL Gate) tracking execution cost ($), estimated latency (ms), and required permission scopes.
+3. **Intent Classifier (`router/classifier.py`)**: Analyzes query structure and pattern heuristics to determine target intent and confidence score ($0.0 - 1.0$).
+4. **Decision Strategy Engine (`router/decision.py`)**: Filters tools by SecurityContext permissions and selects optimal capability layout based on active planning strategy.
+5. **Execution Plan Model (`router/plan.py`)**: Typed representation (`ExecutionPlan`, `ExecutionStage`, `ExecutionTask`) defining parallel/sequential stages, estimated cost, estimated latency, and risk scoring.
+6. **Master Query Planner (`router/planner.py`)**: Unified entrypoint transforming requests into executable plan DAGs for the LangGraph Orchestration Engine.
+
+---
+
 ## Workflow Orchestration Engine
 
-The orchestration engine (`orchestration/`) serves as the central brain of the platform. Built using **LangGraph**, it manages workflow lifecycles, node execution, state checkpointing, fault recovery, and Human-in-the-Loop (HITL) approval gates.
+The orchestration engine (`orchestration/`) serves as the central nervous system of the platform. Built using **LangGraph**, it manages workflow lifecycles, node execution, state checkpointing, fault recovery, and Human-in-the-Loop (HITL) approval gates.
 
 ```mermaid
 stateDiagram-v2
@@ -101,13 +140,6 @@ stateDiagram-v2
     FAILED --> [*]
     REJECTED --> [*]
 ```
-
-### Core Orchestration Subsystems:
-1. **Typed Graph State (`OrchestrationState`)**: Pydantic/TypedDict state container tracking workflow lifecycle, query intent, node history, checkpoints, and execution metrics.
-2. **Modular Graph Nodes (`nodes.py`)**: Isolated handlers for initialization, intent routing, SQL execution, RAG retrieval, evidence fusion, quality evaluation, HITL gates, retry recovery, and response synthesis.
-3. **LangGraph State Graph (`graph.py`)**: Stateful graph topology featuring conditional routing edges, retry loops, and interruption gates.
-4. **State Checkpointing & Persistence (`checkpointer.py`)**: Saves state snapshots at every transition to support step-by-step history inspection, failure recovery, and workflow resumption.
-5. **Human Approval Manager (`hitl.py`)**: Manages approval queues, ticket generation, operator decision processing (`APPROVED` / `REJECTED`), and workflow resumption.
 
 ---
 
@@ -173,6 +205,7 @@ RAGTUNE enforces a 9-layer security boundary evaluated across pre-execution and 
 ## Core Technology Stack
 
 - **Backend Gateway**: FastAPI, Pydantic v2, Uvicorn
+- **Intent Router & Planner**: Dynamic Capability Registry, Pattern Intent Classifier, Strategy Decision Engine
 - **Orchestration Engine**: LangGraph StateGraph Framework, State Checkpointer
 - **Intelligent Caching System**: L1 Exact Match LRU Cache, L2 Cosine Semantic Vector Cache, Single-Flight Coalescing Lock
 - **Input Security Pipeline**: 8-Stage Defense-in-Depth Framework, Unicode NFKC, Regex Threat Classifiers
@@ -219,7 +252,7 @@ python main.py --query "What is our uptime commitment for Acme Enterprise under 
 ```
 
 ### 5. Run Automated Test Suite
-Execute the full test suite covering LangGraph Workflow Orchestration, Intelligent Cache, Input Security Pipeline, IAM, authentication, token rotation, RBAC, guardrails, Text-to-SQL, hybrid search, agents, and REST APIs:
+Execute the full test suite covering Intent Router & Query Planning, LangGraph Workflow Orchestration, Intelligent Cache, Input Security Pipeline, IAM, authentication, token rotation, RBAC, guardrails, Text-to-SQL, hybrid search, agents, and REST APIs:
 
 ```bash
 python -m pytest tests/ -v
@@ -233,7 +266,7 @@ python -m pytest tests/ -v
 - `POST /api/v1/auth/register`: User registration with password strength validation.
 - `POST /api/v1/auth/login`: Authenticates credentials and issues Access + Refresh Tokens.
 - `POST /api/v1/auth/refresh`: Refresh Token Rotation (RTR).
-- `POST /api/v1/auth/logout`: Revokes current active session.
+- `POST /api/v1/auth/logout`: Revokes active session.
 - `POST /api/v1/auth/logout-all`: Revokes all user sessions across all devices.
 - `GET /api/v1/auth/me`: Returns user profile and active SecurityContext permissions.
 - `POST /api/v1/auth/password/change`: Password update with session revocation.
