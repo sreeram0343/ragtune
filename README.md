@@ -1,6 +1,7 @@
 # RAGTUNE - Enterprise Knowledge Intelligence Platform
 
 ![RAGTUNE Platform](https://img.shields.io/badge/RAGTUNE-Enterprise%20v1.0-6366F1?style=for-the-badge)
+![IAM & Security](https://img.shields.io/badge/IAM-Production%20Grade-10B981?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-MIT-10B981?style=for-the-badge)
 ![Build Status](https://img.shields.io/badge/Build-Passing-10B981?style=for-the-badge)
 ![Python Version](https://img.shields.io/badge/Python-3.11%2B-3776AB?style=for-the-badge)
@@ -9,6 +10,7 @@
 
 This is **NOT** a simple chatbot. It is a deterministic, secure, and transparent Enterprise Intelligence Platform combining:
 
+- **Enterprise Identity & Access Management (IAM)**: Independent, decoupled multi-tenant authentication, organization hierarchy, workspace isolation, Refresh Token Rotation (RTR), brute force defense, and audit logging.
 - **Multi-Agent LangGraph Orchestration**: Dynamic routing across specialized reasoning nodes.
 - **Text-to-SQL Synthesis**: Schema introspection, SQL AST validation, and automated self-repair.
 - **Hybrid Search & Cross-Encoder Re-Ranking**: Dense vector embeddings + BM25 sparse index combined via Reciprocal Rank Fusion (RRF).
@@ -19,8 +21,9 @@ This is **NOT** a simple chatbot. It is a deterministic, secure, and transparent
 
 ---
 
-##  Table of Contents
+## 📋 Table of Contents
 - [Architecture Overview](#-architecture-overview)
+- [Enterprise IAM & Security Layer](#-enterprise-iam--security-layer)
 - [9-Layer Enterprise Guardrails Pipeline](#-9-layer-enterprise-guardrails-pipeline)
 - [Quick Start Guide](#-quick-start-guide)
 - [REST API Documentation](#-rest-api-documentation)
@@ -28,12 +31,13 @@ This is **NOT** a simple chatbot. It is a deterministic, secure, and transparent
 
 ---
 
-##  Architecture Overview
+## 🏛️ Architecture Overview
 
 ```mermaid
 graph TD
-    Client[Enterprise Web UI / REST API] --> Gateway[FastAPI Gateway & Auth Middleware]
-    Gateway --> Cache[Redis Multi-Tier Cache]
+    Client[Enterprise Web UI / REST API] --> Gateway[FastAPI Gateway & Security Middleware]
+    Gateway --> IAM[Enterprise IAM Layer: Auth, RBAC, Sessions, Rate Limiting]
+    IAM --> Cache[Redis Multi-Tier Cache]
     Cache -- Cache Hit (0ms) --> Client
     Cache -- Cache Miss --> G_Pre[Guardrails L1-L4: Injection, PII, Scope, RBAC]
     
@@ -66,7 +70,20 @@ graph TD
 
 ---
 
-##  9-Layer Enterprise Guardrails Pipeline
+## 🔐 Enterprise IAM & Security Layer
+
+The platform identity architecture provides a production-ready trust boundary:
+
+1. **Multi-Tenant Hierarchy**: Domain isolation supporting `Organization` → `Workspace` → `Project` → `User` membership models.
+2. **PBKDF2 Password Hashing**: Cryptographically salted PBKDF2-HMAC-SHA256 password hashing (600,000 rounds).
+3. **Refresh Token Rotation (RTR)**: Each refresh request invalidates the previous refresh token and issues a new pair.
+4. **Instant Security Revocation**: Changing passwords or administrative account suspension revokes all active sessions across all devices instantly.
+5. **Brute Force Lockout**: Velocity rate limiting with 15-minute lockouts after 5 consecutive failed login attempts.
+6. **Immutable Audit Logging**: Every registration, login, privilege change, password update, and suspension is recorded in audit logs.
+
+---
+
+## 🛡️ 9-Layer Enterprise Guardrails Pipeline
 
 | Layer | Guardrail Name | Scope | Description |
 | :--- | :--- | :--- | :--- |
@@ -82,7 +99,7 @@ graph TD
 
 ---
 
-##  Quick Start Guide
+## 🚀 Quick Start Guide
 
 ### 1. Installation
 Ensure Python 3.11+ is installed. Clone the repository and install dependencies:
@@ -109,15 +126,8 @@ python main.py
 
 Access the interactive web dashboard at: `http://localhost:8000`
 
-### 4. Run CLI Query
-Execute a standalone intelligence query via command line:
-
-```bash
-python main.py --query "What is our uptime commitment for Acme Enterprise under SLA terms?"
-```
-
-### 5. Run Automated Test Suite
-Run unit and integration tests covering guardrails, Text-to-SQL, hybrid search, agents, and REST API:
+### 4. Run Automated Test Suite
+Run unit and integration tests covering IAM, authentication, token rotation, RBAC, guardrails, Text-to-SQL, hybrid search, agents, and REST API:
 
 ```bash
 python -m pytest tests/ -v
@@ -125,37 +135,30 @@ python -m pytest tests/ -v
 
 ---
 
-##  REST API Documentation
+## 📡 REST API Documentation
 
-### Query Intelligence Endpoint
-- **URL**: `POST /api/v1/query`
-- **Request Body**:
-```json
-{
-  "query": "What were total sales for Acme Enterprise in 2024?",
-  "role": "ANALYST",
-  "tenant_id": "tenant_enterprise_default"
-}
-```
+### IAM & Authentication Endpoints
+- `POST /api/v1/auth/register`: User registration with password strength validation.
+- `POST /api/v1/auth/login`: Authenticates credentials & issues Access + Refresh Tokens.
+- `POST /api/v1/auth/refresh`: Refresh Token Rotation (RTR).
+- `POST /api/v1/auth/logout`: Revokes active session.
+- `POST /api/v1/auth/logout-all`: Revokes all user sessions across all devices.
+- `GET /api/v1/auth/me`: Returns profile and active SecurityContext permissions.
+- `POST /api/v1/auth/password/change`: Password update with session revocation.
+- `POST /api/v1/auth/organizations`: Creates Organization & default Workspace.
+- `POST /api/v1/auth/invitations`: Issues Org/Workspace invitation token.
+- `POST /api/v1/auth/invitations/accept`: Accepts invitation token.
+- `GET /api/v1/auth/audit-logs`: Queries immutable security audit logs.
+- `POST /api/v1/auth/admin/users/{user_id}/suspend`: Administrative account suspension.
 
-### Document Ingestion Endpoint
-- **URL**: `POST /api/v1/ingest/text`
-- **Request Body**:
-```json
-{
-  "text": "Enterprise travel policy allows $85 per diem for domestic meals.",
-  "title": "Travel Policy Amendment 2026"
-}
-```
-
-### Additional Endpoints
+### Intelligence & System Endpoints
+- `POST /api/v1/query`: Submits query to multi-agent reasoning engine.
+- `POST /api/v1/ingest/text`: Ingests document snippets into hybrid vector retriever.
 - `GET /api/v1/schema`: Returns introspected database tables and column schemas.
 - `GET /api/v1/hitl/queue`: Lists pending Human-in-the-Loop review tickets.
-- `POST /api/v1/hitl/action`: Resolves pending tickets with operator approval/rejection.
 - `GET /api/v1/xai/{trace_id}`: Retrieves step-by-step XAI execution graph.
-- `GET /api/v1/cache/stats`: Returns cache telemetry.
 
 ---
 
-##  License
+## 📄 License
 Released under the MIT License. Built for enterprise knowledge intelligence.
