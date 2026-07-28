@@ -1,0 +1,18 @@
+groups:
+  - name: RAGTUNE_SLO_Alerts
+    rules:
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "HTTP 5xx Error Rate exceeds 5% threshold"
+
+      - alert: HighP99Latency
+        expr: histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m]) by (le))) > 2.0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "P99 API Response Latency exceeds 2 seconds"
