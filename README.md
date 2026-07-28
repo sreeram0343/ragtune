@@ -3,6 +3,7 @@
 ![RAGTUNE Platform](https://img.shields.io/badge/RAGTUNE-Enterprise%20v1.0-6366F1?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-MIT-10B981?style=for-the-badge)
 ![Build Status](https://img.shields.io/badge/Build-Passing-10B981?style=for-the-badge)
+![Python Version](https://img.shields.io/badge/Python-3.11%2B-3776AB?style=for-the-badge)
 
 **RAGTUNE** is an enterprise-grade, domain-agnostic Knowledge Intelligence Platform engineered for organizations to query, reason, and execute evidence-backed decisions across structured SQL databases and unstructured enterprise documents.
 
@@ -15,6 +16,15 @@ This is **NOT** a simple chatbot. It is a deterministic, secure, and transparent
 - **Explainable AI (XAI)**: Full step-by-step visual execution graphs, timing metrics, and citation attributions.
 - **Human-in-the-Loop (HITL)**: Interactive operator review queue for low-confidence or policy-triggered queries.
 - **Redis & Multi-Tier Caching**: Semantic vector caching and SQL result caching with TTL.
+
+---
+
+## 📋 Table of Contents
+- [Architecture Overview](#-architecture-overview)
+- [9-Layer Enterprise Guardrails Pipeline](#-9-layer-enterprise-guardrails-pipeline)
+- [Quick Start Guide](#-quick-start-guide)
+- [REST API Documentation](#-rest-api-documentation)
+- [License](#-license)
 
 ---
 
