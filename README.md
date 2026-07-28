@@ -1,6 +1,7 @@
 # RAGTUNE - Enterprise Knowledge Intelligence Platform
 
 ![RAGTUNE Platform](https://img.shields.io/badge/RAGTUNE-Enterprise%20v1.0-6366F1?style=for-the-badge)
+![LangGraph Orchestration](https://img.shields.io/badge/Orchestration-LangGraph%20StateGraph-10B981?style=for-the-badge)
 ![Intelligent Cache](https://img.shields.io/badge/Intelligent%20Cache-L1--L2%20Multi--Tier-10B981?style=for-the-badge)
 ![Input Security Pipeline](https://img.shields.io/badge/Input%20Security-8--Stage%20Defense-10B981?style=for-the-badge)
 ![IAM & Security](https://img.shields.io/badge/IAM-Production%20Grade-10B981?style=for-the-badge)
@@ -18,6 +19,7 @@ Unlike simple conversational chatbots, RAGTUNE is a deterministic, secure, and t
 
 ## Table of Contents
 - [Platform Architecture](#platform-architecture)
+- [Workflow Orchestration Engine](#workflow-orchestration-engine)
 - [Intelligent Caching System](#intelligent-caching-system)
 - [Input Security Pipeline](#input-security-pipeline)
 - [Enterprise IAM & Multi-Tenancy](#enterprise-iam--multi-tenancy)
@@ -31,7 +33,7 @@ Unlike simple conversational chatbots, RAGTUNE is a deterministic, secure, and t
 
 ## Platform Architecture
 
-RAGTUNE is built around an event-driven multi-agent state machine powered by LangGraph. All incoming user requests pass through a centralized Input Security Pipeline and an Intelligent Multi-Layer Cache before reaching domain execution agents, SQL engines, hybrid retrieval stores, or reasoning modules.
+RAGTUNE is built around an event-driven multi-agent state machine powered by LangGraph. All incoming user requests pass through a centralized Input Security Pipeline and an Intelligent Multi-Layer Cache before entering the central Workflow Orchestration Engine.
 
 ![RAGTUNE Platform Architecture](docs/images/architecture.png)
 
@@ -42,75 +44,88 @@ graph TD
     SecurityPipeline --> CacheManager[Intelligent Multi-Layer Cache Manager]
     
     CacheManager -- L1/L2 Cache Hit (0.1ms) --> Client
-    CacheManager -- Cache Miss --> IAM[Enterprise IAM & RBAC Context Verification]
+    CacheManager -- Cache Miss --> OrchestrationEngine[LangGraph Workflow Orchestration Engine]
     
-    IAM --> G_Pre[Guardrails L1-L4: Injection, PII, Scope, RBAC]
-    G_Pre --> Router[Intent Router Agent]
+    OrchestrationEngine --> Router[Intent & Policy Router Node]
     
-    Router -->|Structured Query| SQLAgent[Text-to-SQL Engine]
-    Router -->|Unstructured Query| RAGAgent[Hybrid RAG Engine]
-    Router -->|Hybrid Query| FusionAgent[Evidence Fusion Agent]
+    Router -->|Structured Query| SQLAgent[Text-to-SQL Engine Node]
+    Router -->|Unstructured Query| RAGAgent[Hybrid RAG Engine Node]
+    Router -->|Hybrid Query| FusionAgent[Evidence Fusion Engine Node]
     
-    SQLAgent --> SQLGuard[L6: SQL AST Safety & Limit Capper]
-    SQLGuard --> DB[(Structured SQL Database)]
+    SQLAgent --> EvaluationNode[Validation & Quality Evaluation Node]
+    RAGAgent --> EvaluationNode
+    FusionNode --> EvaluationNode
     
-    RAGAgent --> BM25[BM25 Sparse Index]
-    RAGAgent --> Dense[Dense Vector Store]
-    BM25 --> RRF[Reciprocal Rank Fusion]
-    Dense --> RRF
-    RRF --> ReRanker[Cross-Encoder Re-Ranker]
+    EvaluationNode -- High Quality --> SynthesisNode[Response Synthesis Node]
+    EvaluationNode -- Low Confidence / Policy Flag --> HITLGate[Human-in-the-Loop Approval Gate]
     
-    DB --> FusionAgent
-    ReRanker --> FusionAgent
+    HITLGate -- Operator Approved --> SynthesisNode
+    HITLGate -- Operator Rejected --> FallbackNode[Graceful Fallback Node]
     
-    FusionAgent --> G_Post[Guardrails L5, L7-L9: Drift, Groundedness, Toxicity, Leakage]
-    
-    G_Post -- Safe & High Confidence --> XAI[Explainable AI Trace Generator]
-    G_Post -- Flagged / Low Confidence --> HITL[Human-in-the-Loop Review Queue]
-    
-    HITL -- Approved by Operator --> XAI
-    XAI --> Client
+    SynthesisNode --> Client
+    FallbackNode --> Client
 ```
+
+---
+
+## Workflow Orchestration Engine
+
+The orchestration engine (`orchestration/`) serves as the central brain of the platform. Built using **LangGraph**, it manages workflow lifecycles, node execution, state checkpointing, fault recovery, and Human-in-the-Loop (HITL) approval gates.
+
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING
+    PENDING --> INITIALIZING: Load Security Context & Input
+    INITIALIZING --> ROUTING: Initialize Graph State
+    
+    ROUTING --> EXECUTING_SQL: Intent = STRUCTURED
+    ROUTING --> EXECUTING_RAG: Intent = UNSTRUCTURED
+    ROUTING --> EXECUTING_FUSION: Intent = HYBRID
+    
+    EXECUTING_SQL --> EVALUATING
+    EXECUTING_RAG --> EVALUATING
+    EXECUTING_FUSION --> EVALUATING
+    
+    EVALUATING --> COMPLETED: Confidence >= 0.85 & Safe
+    EVALUATING --> AWAITING_APPROVAL: Confidence < 0.85 or HITL Policy Trigger
+    EVALUATING --> RETRYING: Recoverable Node Error
+    
+    RETRYING --> EVALUATING: Retry Attempt < 3
+    RETRYING --> FAILED: Max Retries Exceeded
+    
+    AWAITING_APPROVAL --> RESUMING: Operator Approved
+    AWAITING_APPROVAL --> REJECTED: Operator Rejected
+    RESUMING --> COMPLETED
+    
+    COMPLETED --> [*]
+    FAILED --> [*]
+    REJECTED --> [*]
+```
+
+### Core Orchestration Subsystems:
+1. **Typed Graph State (`OrchestrationState`)**: Pydantic/TypedDict state container tracking workflow lifecycle, query intent, node history, checkpoints, and execution metrics.
+2. **Modular Graph Nodes (`nodes.py`)**: Isolated handlers for initialization, intent routing, SQL execution, RAG retrieval, evidence fusion, quality evaluation, HITL gates, retry recovery, and response synthesis.
+3. **LangGraph State Graph (`graph.py`)**: Stateful graph topology featuring conditional routing edges, retry loops, and interruption gates.
+4. **State Checkpointing & Persistence (`checkpointer.py`)**: Saves state snapshots at every transition to support step-by-step history inspection, failure recovery, and workflow resumption.
+5. **Human Approval Manager (`hitl.py`)**: Manages approval queues, ticket generation, operator decision processing (`APPROVED` / `REJECTED`), and workflow resumption.
 
 ---
 
 ## Intelligent Caching System
 
-The platform features an intelligent, multi-layer caching architecture (`cache/`) positioned immediately after request validation to eliminate redundant LLM inference calls, embedding generation, Text-to-SQL queries, and vector searches:
+The platform features an intelligent, multi-layer caching architecture (`cache/`) positioned immediately after request validation:
 
-```mermaid
-graph TD
-    SecurityPipeline[Input Security Pipeline Cleared Request] --> CacheManager[Master Intelligent Cache Manager]
-    
-    CacheManager --> KeyBuilder[Tenant-Isolated Cache Key Generator]
-    KeyBuilder --> L1[Layer 1: Exact Hash Cache - In-Memory / Redis]
-    
-    L1 -- Hit (0.1ms) --> AuditHit[Telemetry: Record Hit & Cost Savings] --> Return[Return Cached Result]
-    
-    L1 -- Miss --> L2[Layer 2: Semantic Vector Cache - Cosine Similarity >= 0.92]
-    L2 -- Hit (1.2ms) --> AuditHit
-    
-    L2 -- Miss --> SingleFlight[Single-Flight Lock - Stampede Prevention]
-    
-    SingleFlight -- Concurrent Duplicate --> Wait[Wait for First Execution Leader] --> Return
-    SingleFlight -- Execution Leader --> Compute[Proceed to Compute Engine]
-    
-    Compute --> CacheWrite[Write Back to Cache with Tags & TTL] --> Return
-```
-
-### Core Caching Subsystems:
-1. **Multi-Tenant Key Isolation (`TenantCacheKeyBuilder`)**: Generates SHA-256 keys in format `ragtune:{tenant_id}:{workspace_id}:{namespace}:{hash}`, preventing cross-tenant data leakage or cache poisoning.
-2. **L1 Exact Match Hash Cache (`InMemoryLRUCacheProvider` / `RedisCacheProvider`)**: Microsecond lookup ($< 0.1\text{ms}$) with thread-safe LRU eviction and sliding/absolute TTL.
-3. **L2 Semantic Vector Cache (`SemanticCacheEngine`)**: Cosine similarity matching ($\ge 0.92$ threshold) enabling response reuse for semantically equivalent near-duplicate queries.
-4. **Single-Flight Coalescing (`SingleFlightLock`)**: Prevents cache stampedes (thundering herd problem). When 1,000 concurrent threads hit a cold cache item, the computation executes **once**, while 999 contenders await and share the result.
-5. **Tag-Based Invalidation (`CacheInvalidationEngine`)**: Event-driven cache purging listening for system events (`document:updated`, `schema:changed`, `user:permissions_changed`, `workspace:deleted`).
-6. **Telemetry & Cost Tracker (`CacheTelemetryTracker`)**: Tracks hit/miss ratios, latency reduction (sec), memory footprint, stampede blocks, and estimated LLM API cost savings ($).
+- **Multi-Tenant Key Isolation (`TenantCacheKeyBuilder`)**: Generates SHA-256 keys in format `ragtune:{tenant_id}:{workspace_id}:{namespace}:{hash}`.
+- **L1 Exact Match Hash Cache (`InMemoryLRUCacheProvider` / `RedisCacheProvider`)**: Microsecond lookup ($< 0.1\text{ms}$) with thread-safe LRU eviction and sliding/absolute TTL.
+- **L2 Semantic Vector Cache (`SemanticCacheEngine`)**: Cosine similarity matching ($\ge 0.92$ threshold) enabling response reuse for semantically equivalent queries.
+- **Single-Flight Coalescing (`SingleFlightLock`)**: Prevents cache stampedes by executing duplicate concurrent cache misses exactly once.
+- **Tag-Based Invalidation (`CacheInvalidationEngine`)**: Event-driven cache purging listening for system events (`document:updated`, `schema:changed`, `user:permissions_changed`, `workspace:deleted`).
 
 ---
 
 ## Input Security Pipeline
 
-All inbound requests enter the system through a centralized 8-stage Defense-in-Depth pipeline (`input_security/`) executing in strict validation sequence before AI orchestration:
+All inbound requests enter the system through a centralized 8-stage Defense-in-Depth pipeline (`input_security/`):
 
 | Stage | Security Stage Name | Technical Scope & Responsibilities |
 | :--- | :--- | :--- |
@@ -131,11 +146,9 @@ The platform identity architecture provides a production-ready trust boundary:
 
 - **Multi-Tenant Hierarchy**: Strict isolation across Organization, Workspace, Project, and User entities.
 - **Cryptographic Security**: PBKDF2-HMAC-SHA256 password hashing (600,000 rounds) with random salts and SHA-256 token digest storage.
-- **Refresh Token Rotation (RTR)**: Every token refresh invalidates the prior refresh token and issues a new pair. Token reuse attempts automatically revoke all active sessions for the user across all devices.
+- **Refresh Token Rotation (RTR)**: Every token refresh invalidates the prior refresh token and issues a new pair.
 - **Instant Security Revocation**: Password changes or administrative account suspensions instantly revoke active sessions.
-- **Role-Based Access Control (RBAC)**: Fine-grained permission matrices checking Organization Roles (OWNER, ADMIN, MEMBER, GUEST) and Workspace Roles (WORKSPACE_ADMIN, MEMBER, VIEWER).
-- **Brute-Force & Rate Limiting**: Exponential backoff and account lockouts after 5 consecutive login failures.
-- **Security Audit Logging**: Immutable tracking of authentication attempts, privilege escalations, password modifications, and administrative suspensions.
+- **Role-Based Access Control (RBAC)**: Fine-grained permission matrices checking Organization Roles and Workspace Roles.
 
 ---
 
@@ -145,7 +158,7 @@ RAGTUNE enforces a 9-layer security boundary evaluated across pre-execution and 
 
 | Layer | Guardrail Name | Scope | Technical Description |
 | :--- | :--- | :--- | :--- |
-| **L1** | **Prompt Injection Defense** | Pre-Execution | Scans incoming queries for jailbreak patterns, system instruction overrides, and adversarial prompt payloads. |
+| **L1** | **Prompt Injection Defense** | Pre-Execution | Scans incoming queries for jailbreak patterns and adversarial prompt payloads. |
 | **L2** | **PII & PHI Anonymization** | Pre-Execution | Identifies and dynamically masks Emails, Phone Numbers, SSNs, Credit Cards, and IP Addresses. |
 | **L3** | **Domain Scope Boundary** | Pre-Execution | Validates that queries align with enterprise business domains and rejects off-topic requests. |
 | **L4** | **RBAC & Tenant Isolation** | Pre-Execution | Verifies caller permissions and restricts multi-tenant database table access. |
@@ -160,10 +173,10 @@ RAGTUNE enforces a 9-layer security boundary evaluated across pre-execution and 
 ## Core Technology Stack
 
 - **Backend Gateway**: FastAPI, Pydantic v2, Uvicorn
-- **Intelligent Caching System**: L1 Exact Match LRU Cache, L2 Cosine Semantic Vector Cache, Single-Flight Coalescing Lock, Redis Adapter
+- **Orchestration Engine**: LangGraph StateGraph Framework, State Checkpointer
+- **Intelligent Caching System**: L1 Exact Match LRU Cache, L2 Cosine Semantic Vector Cache, Single-Flight Coalescing Lock
 - **Input Security Pipeline**: 8-Stage Defense-in-Depth Framework, Unicode NFKC, Regex Threat Classifiers
 - **Database Persistence**: SQLAlchemy 2.0, SQLite / PostgreSQL
-- **Orchestration**: LangGraph State Graph Framework
 - **Retrieval Engine**: BM25 Sparse Index + Cosine Similarity Vector Store with Reciprocal Rank Fusion (RRF)
 - **Re-Ranking**: Feature-based Cross-Encoder Re-Ranker
 - **SQL Parser**: SQLGlot AST Engine
@@ -206,7 +219,7 @@ python main.py --query "What is our uptime commitment for Acme Enterprise under 
 ```
 
 ### 5. Run Automated Test Suite
-Execute the full test suite covering Intelligent Cache (L1/L2, SingleFlight, Tags), Input Security Pipeline (8 stages), IAM, authentication, token rotation, RBAC, guardrails, Text-to-SQL, hybrid search, agents, and REST APIs:
+Execute the full test suite covering LangGraph Workflow Orchestration, Intelligent Cache, Input Security Pipeline, IAM, authentication, token rotation, RBAC, guardrails, Text-to-SQL, hybrid search, agents, and REST APIs:
 
 ```bash
 python -m pytest tests/ -v
