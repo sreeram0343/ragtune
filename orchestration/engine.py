@@ -60,9 +60,10 @@ class WorkflowOrchestrationEngine:
         # 3. Save Post-Execution Checkpoint
         self.checkpointer.save_checkpoint(workflow_id, final_state, final_state.get("current_node", "end"))
 
-        # 4. If suspended for HITL, generate approval ticket
+        # 4. If suspended for HITL, register approval ticket in HITL manager
         if final_state.get("requires_hitl") and final_state.get("hitl_ticket_id"):
             self.hitl_manager.create_ticket(
+                ticket_id=final_state["hitl_ticket_id"],
                 workflow_id=workflow_id,
                 tenant_id=final_state["tenant_id"],
                 workspace_id=final_state["workspace_id"],
@@ -91,7 +92,7 @@ class WorkflowOrchestrationEngine:
         if state.get("status") not in [WorkflowStatusEnum.AWAITING_APPROVAL.value, "SUSPENDED"]:
             return False, state, f"Workflow is not awaiting approval (Status: {state.get('status')})"
 
-        # Submit HITL decision
+        # Submit HITL decision in manager
         ticket_id = state.get("hitl_ticket_id")
         if ticket_id:
             self.hitl_manager.submit_decision(ticket_id, operator_id, decision, notes)
@@ -99,7 +100,7 @@ class WorkflowOrchestrationEngine:
         state["hitl_decision"] = decision
         state["requires_hitl"] = False
 
-        # Resume graph execution from hitl_gate_node
+        # Resume graph execution
         resumed_state: OrchestrationState = self.compiled_graph.invoke(state)
 
         # Save post-resumption checkpoint
