@@ -1,6 +1,7 @@
 # RAGTUNE - Enterprise Knowledge Intelligence Platform
 
 ![RAGTUNE Platform](https://img.shields.io/badge/RAGTUNE-Enterprise%20v1.0-6366F1?style=for-the-badge)
+![Hybrid Retrieval](https://img.shields.io/badge/Hybrid%20Retrieval-Dense%20%2B%20BM25%20%2B%20RRF-10B981?style=for-the-badge)
 ![Intent Router](https://img.shields.io/badge/Intent%20Router-Dynamic%20Planner-10B981?style=for-the-badge)
 ![LangGraph Orchestration](https://img.shields.io/badge/Orchestration-LangGraph%20StateGraph-10B981?style=for-the-badge)
 ![Intelligent Cache](https://img.shields.io/badge/Intelligent%20Cache-L1--L2%20Multi--Tier-10B981?style=for-the-badge)
@@ -8,11 +9,10 @@
 ![IAM & Security](https://img.shields.io/badge/IAM-Production%20Grade-10B981?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-MIT-10B981?style=for-the-badge)
 ![Build Status](https://img.shields.io/badge/Build-Passing-10B981?style=for-the-badge)
-![Python Version](https://img.shields.io/badge/Python-3.11%2B-3776AB?style=for-the-badge)
 
 RAGTUNE is a domain-agnostic Enterprise Knowledge Intelligence Platform engineered for organizations to query, reason, and execute evidence-backed decisions across structured SQL databases and unstructured enterprise documents.
 
-Unlike simple conversational chatbots, RAGTUNE is a deterministic, secure, and transparent intelligence platform combining an Intent Router and Query Planning Engine, multi-agent orchestration, Text-to-SQL synthesis, hybrid retrieval, an 8-stage Input Security Pipeline, an Intelligent Multi-Layer Caching System, a 9-layer Guardrails system, Explainable AI (XAI) execution tracing, and Human-in-the-Loop (HITL) approval workflows.
+Unlike simple conversational chatbots, RAGTUNE is a deterministic, secure, and transparent intelligence platform combining a Production-Grade Hybrid Retrieval Engine, an Intent Router, multi-agent orchestration, Text-to-SQL synthesis, an 8-stage Input Security Pipeline, an Intelligent Multi-Layer Caching System, a 9-layer Guardrails system, Explainable AI (XAI) execution tracing, and Human-in-the-Loop (HITL) approval workflows.
 
 ![RAGTUNE Dashboard Interface](docs/images/dashboard.png)
 
@@ -20,6 +20,7 @@ Unlike simple conversational chatbots, RAGTUNE is a deterministic, secure, and t
 
 ## Table of Contents
 - [Platform Architecture](#platform-architecture)
+- [Enterprise Hybrid Retrieval Engine](#enterprise-hybrid-retrieval-engine)
 - [Intent Router & Query Planning Engine](#intent-router--query-planning-engine)
 - [Workflow Orchestration Engine](#workflow-orchestration-engine)
 - [Intelligent Caching System](#intelligent-caching-system)
@@ -35,7 +36,7 @@ Unlike simple conversational chatbots, RAGTUNE is a deterministic, secure, and t
 
 ## Platform Architecture
 
-RAGTUNE is built around an event-driven multi-agent state machine powered by LangGraph. All incoming user requests pass through a centralized Input Security Pipeline, an Intelligent Multi-Layer Cache, and an Intent Router before entering the central Workflow Orchestration Engine.
+RAGTUNE is built around an event-driven multi-agent state machine powered by LangGraph. All incoming user requests pass through a centralized Input Security Pipeline, an Intelligent Multi-Layer Cache, an Intent Router, and an Enterprise Hybrid Retrieval Engine.
 
 ![RAGTUNE Platform Architecture](docs/images/architecture.png)
 
@@ -48,19 +49,20 @@ graph TD
     CacheManager -- L1/L2 Cache Hit (0.1ms) --> Client
     CacheManager -- Cache Miss --> IntentRouter[Intent Router & Query Planning Engine]
     
-    IntentRouter --> Registry[Dynamic Capability Registry]
-    IntentRouter --> PlanGenerator[Execution Plan Generator]
-    
-    PlanGenerator --> ExecPlan[Structured Execution Plan Model]
+    IntentRouter --> ExecPlan[Structured Execution Plan Model]
     ExecPlan --> OrchestrationEngine[LangGraph Workflow Orchestration Engine]
     
+    OrchestrationEngine -->|Unstructured Query| HybridRetriever[Enterprise Hybrid Retrieval Engine]
     OrchestrationEngine -->|Structured Query| SQLAgent[Text-to-SQL Engine Node]
-    OrchestrationEngine -->|Unstructured Query| RAGAgent[Hybrid RAG Engine Node]
-    OrchestrationEngine -->|Hybrid Query| FusionAgent[Evidence Fusion Engine Node]
     
-    SQLAgent --> EvaluationNode[Validation & Quality Evaluation Node]
-    RAGAgent --> EvaluationNode
-    FusionNode --> EvaluationNode
+    HybridRetriever --> QueryUnderstanding[Query Normalization & HyDE Expansion]
+    QueryUnderstanding --> SearchEngine[Dual-Path Dense Vector + BM25 Sparse Search]
+    SearchEngine --> RRF[Reciprocal Rank Fusion RRF k=60]
+    RRF --> CrossEncoder[Cross-Encoder Feature Re-Ranker]
+    CrossEncoder --> ContextBuilder[Context Construction & Citation Engine]
+    
+    ContextBuilder --> EvaluationNode[Validation & Quality Evaluation Node]
+    SQLAgent --> EvaluationNode
     
     EvaluationNode -- High Quality --> SynthesisNode[Response Synthesis Node]
     EvaluationNode -- Low Confidence / Policy Flag --> HITLGate[Human-in-the-Loop Approval Gate]
@@ -74,72 +76,50 @@ graph TD
 
 ---
 
-## Intent Router & Query Planning Engine
+## Enterprise Hybrid Retrieval Engine
 
-The Intent Router and Query Planning Engine (`router/`) acts as the decision-making brain of the platform. Rather than executing query tools directly, it analyzes user intent, discovers available platform capabilities, evaluates cost and latency trade-offs, and outputs a structured **Execution Plan** (`ExecutionPlan`).
+The Enterprise Hybrid Retrieval Engine (`retrieval/`) discovers, ranks, re-ranks, and packages grounded evidence chunks from enterprise documents while enforcing multi-tenant row-level security isolation.
 
 ```mermaid
 sequenceDiagram
-    participant Request as Input Request
-    participant Classifier as Intent Classifier
-    participant Registry as Capability Registry
-    participant Decision as Decision Strategy Engine
-    participant Planner as Plan Generator
-    participant ExecPlan as Structured ExecutionPlan
+    participant Planner as Query Planner
+    participant HyDE as Query Analyser & HyDE
+    participant Search as Dense & Sparse Search
+    participant Fusion as RRF Fusion
+    participant ReRanker as CrossEncoder ReRanker
+    participant Context as Context Builder
 
-    Request->>Classifier: Analyze Natural Language Query & SecurityContext
-    Classifier->>Classifier: Determine Intent Category & Confidence
-    Classifier->>Registry: Discover Compatible Platform Capabilities
-    Registry-->>Decision: Capabilities List + Cost/Latency Metrics
-    Decision->>Decision: Apply Strategy (Cost, Latency, Policy, Risk)
-    Decision->>Planner: Selected Capabilities & Execution Sequence
-    Planner->>ExecPlan: Build ExecutionPlan (Stages, Parallel Tasks, Est. Cost)
-    ExecPlan-->>Request: Return Validated ExecutionPlan for LangGraph Engine
+    Planner->>HyDE: Input Query & Workspace Scope
+    HyDE->>HyDE: Analyze Query & Generate HyDE Expansion
+    HyDE->>Search: Execute Parallel Dense + BM25 Search
+    Search-->>Fusion: Dense Candidates + Sparse Candidates
+    Fusion->>Fusion: Merge via Reciprocal Rank Fusion (k=60)
+    Fusion->>ReRanker: Re-Rank Top Candidate Chunks
+    ReRanker-->>Context: Ranked Evidence Chunks with Scores
+    Context->>Context: Deduplicate, Fit Token Budget & Compute Confidence
+    Context-->>Planner: Return EvidencePackage (Chunks, Citations, Metrics)
 ```
 
-### Core Planning Subsystems:
-1. **Domain Models (`router/domain.py`)**: Intent categories (`STRUCTURED_SQL`, `UNSTRUCTURED_RAG`, `HYBRID_ANALYTICS`, `POLICY_LOOKUP`, `SUMMARIZATION`, `RESEARCH`, `ADMINISTRATIVE`) and planning strategies (`LOW_LATENCY`, `BALANCED`, `MAX_ACCURACY`, `COST_MINIMIZED`).
-2. **Dynamic Capability Registry (`router/registry.py`)**: Discoverable registry of platform tools (Vector RAG, BM25, Text-to-SQL, Analytics Engine, Summarizer, HITL Gate) tracking execution cost ($), estimated latency (ms), and required permission scopes.
-3. **Intent Classifier (`router/classifier.py`)**: Analyzes query structure and pattern heuristics to determine target intent and confidence score ($0.0 - 1.0$).
-4. **Decision Strategy Engine (`router/decision.py`)**: Filters tools by SecurityContext permissions and selects optimal capability layout based on active planning strategy.
-5. **Execution Plan Model (`router/plan.py`)**: Typed representation (`ExecutionPlan`, `ExecutionStage`, `ExecutionTask`) defining parallel/sequential stages, estimated cost, estimated latency, and risk scoring.
-6. **Master Query Planner (`router/planner.py`)**: Unified entrypoint transforming requests into executable plan DAGs for the LangGraph Orchestration Engine.
+### Core Retrieval Subsystems:
+1. **Domain & Evidence Models (`retrieval/domain.py`)**: `DocumentChunk`, `SearchCandidate`, `CitationReference`, `RetrievalMetrics`, and `EvidencePackage`.
+2. **Query Understanding & HyDE Expander (`retrieval/query_analysis.py`)**: Normalization, keyword extraction, and selective Hypothetical Document Expansion (HyDE) for complex queries.
+3. **Dual-Path Hybrid Search (`retrieval/search.py`)**: Dense Vector Similarity Search combined with BM25 Lexical Keyword Search under strict multi-tenant workspace isolation.
+4. **Reciprocal Rank Fusion (`retrieval/fusion.py`)**: Merges dense and sparse candidate rankings using $RRF\_Score(d) = \sum \frac{1}{k + r(d)}$ with $k=60$.
+5. **Cross-Encoder Re-Ranker (`retrieval/rerank.py`)**: Cross-Encoder feature re-ranker scoring query-chunk candidate pairs.
+6. **Intelligent Context Construction (`retrieval/context.py`)**: Assembles citation-preserved context windows, enforces token budgets (e.g. max 1,500 tokens), deduplicates text snippets, and computes retrieval confidence.
+7. **IR Evaluation Subsystem (`retrieval/eval.py`)**: Calculates Precision@K, Recall@K, MRR (Mean Reciprocal Rank), and nDCG metrics.
+
+---
+
+## Intent Router & Query Planning Engine
+
+The Intent Router and Query Planning Engine (`router/`) acts as the decision-making brain of the platform. Rather than executing query tools directly, it analyzes user intent, discovers available platform capabilities, evaluates cost and latency trade-offs, and outputs a structured **Execution Plan** (`ExecutionPlan`).
 
 ---
 
 ## Workflow Orchestration Engine
 
 The orchestration engine (`orchestration/`) serves as the central nervous system of the platform. Built using **LangGraph**, it manages workflow lifecycles, node execution, state checkpointing, fault recovery, and Human-in-the-Loop (HITL) approval gates.
-
-```mermaid
-stateDiagram-v2
-    [*] --> PENDING
-    PENDING --> INITIALIZING: Load Security Context & Input
-    INITIALIZING --> ROUTING: Initialize Graph State
-    
-    ROUTING --> EXECUTING_SQL: Intent = STRUCTURED
-    ROUTING --> EXECUTING_RAG: Intent = UNSTRUCTURED
-    ROUTING --> EXECUTING_FUSION: Intent = HYBRID
-    
-    EXECUTING_SQL --> EVALUATING
-    EXECUTING_RAG --> EVALUATING
-    EXECUTING_FUSION --> EVALUATING
-    
-    EVALUATING --> COMPLETED: Confidence >= 0.85 & Safe
-    EVALUATING --> AWAITING_APPROVAL: Confidence < 0.85 or HITL Policy Trigger
-    EVALUATING --> RETRYING: Recoverable Node Error
-    
-    RETRYING --> EVALUATING: Retry Attempt < 3
-    RETRYING --> FAILED: Max Retries Exceeded
-    
-    AWAITING_APPROVAL --> RESUMING: Operator Approved
-    AWAITING_APPROVAL --> REJECTED: Operator Rejected
-    RESUMING --> COMPLETED
-    
-    COMPLETED --> [*]
-    FAILED --> [*]
-    REJECTED --> [*]
-```
 
 ---
 
@@ -205,13 +185,12 @@ RAGTUNE enforces a 9-layer security boundary evaluated across pre-execution and 
 ## Core Technology Stack
 
 - **Backend Gateway**: FastAPI, Pydantic v2, Uvicorn
+- **Hybrid Retrieval Engine**: Dense Vector Search, BM25 Lexical Sparse Search, RRF Fusion ($k=60$), Cross-Encoder Re-Ranker
 - **Intent Router & Planner**: Dynamic Capability Registry, Pattern Intent Classifier, Strategy Decision Engine
 - **Orchestration Engine**: LangGraph StateGraph Framework, State Checkpointer
 - **Intelligent Caching System**: L1 Exact Match LRU Cache, L2 Cosine Semantic Vector Cache, Single-Flight Coalescing Lock
 - **Input Security Pipeline**: 8-Stage Defense-in-Depth Framework, Unicode NFKC, Regex Threat Classifiers
 - **Database Persistence**: SQLAlchemy 2.0, SQLite / PostgreSQL
-- **Retrieval Engine**: BM25 Sparse Index + Cosine Similarity Vector Store with Reciprocal Rank Fusion (RRF)
-- **Re-Ranking**: Feature-based Cross-Encoder Re-Ranker
 - **SQL Parser**: SQLGlot AST Engine
 - **Frontend Dashboard**: HTML5, Vanilla CSS Glassmorphism, Modern SPA Architecture
 
@@ -252,7 +231,7 @@ python main.py --query "What is our uptime commitment for Acme Enterprise under 
 ```
 
 ### 5. Run Automated Test Suite
-Execute the full test suite covering Intent Router & Query Planning, LangGraph Workflow Orchestration, Intelligent Cache, Input Security Pipeline, IAM, authentication, token rotation, RBAC, guardrails, Text-to-SQL, hybrid search, agents, and REST APIs:
+Execute the full test suite covering Hybrid Retrieval, Intent Router & Planning, LangGraph Workflow Orchestration, Intelligent Cache, Input Security Pipeline, IAM, authentication, token rotation, RBAC, guardrails, Text-to-SQL, agents, and REST APIs:
 
 ```bash
 python -m pytest tests/ -v
