@@ -22,20 +22,21 @@ def _route_after_router(state: OrchestrationState) -> Literal["sql_node", "rag_n
 
 
 def _route_after_evaluation(state: OrchestrationState) -> Literal["synthesis_node", "hitl_gate_node", "retry_node"]:
-    if state.get("requires_hitl", False):
+    if state.get("hitl_decision") == "REJECTED" or state.get("requires_hitl", False):
         return "hitl_gate_node"
     if not state.get("policy_passed", True):
         return "retry_node"
     return "synthesis_node"
 
 
-def _route_after_hitl(state: OrchestrationState) -> Literal["synthesis_node", "fallback_node", "hitl_gate_node"]:
+def _route_after_hitl(state: OrchestrationState) -> Literal["synthesis_node", "fallback_node", "__end__"]:
     decision = state.get("hitl_decision")
     if decision == "APPROVED":
         return "synthesis_node"
     elif decision == "REJECTED":
         return "fallback_node"
-    return "hitl_gate_node"
+    # Freeze workflow in suspended state until operator decision is submitted
+    return END
 
 
 def _route_after_retry(state: OrchestrationState) -> Literal["evaluation_node", "fallback_node"]:
