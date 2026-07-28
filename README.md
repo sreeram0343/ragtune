@@ -1,6 +1,7 @@
 # RAGTUNE - Enterprise Knowledge Intelligence Platform
 
 ![RAGTUNE Platform](https://img.shields.io/badge/RAGTUNE-Enterprise%20v1.0-6366F1?style=for-the-badge)
+![Verification Engine](https://img.shields.io/badge/Verification-Self--RAG%20%2B%20CRAG-10B981?style=for-the-badge)
 ![Enterprise Text--to--SQL](https://img.shields.io/badge/Text--to--SQL-AST%20Read--Only%20Engine-10B981?style=for-the-badge)
 ![Hybrid Retrieval](https://img.shields.io/badge/Hybrid%20Retrieval-Dense%20%2B%20BM25%20%2B%20RRF-10B981?style=for-the-badge)
 ![Intent Router](https://img.shields.io/badge/Intent%20Router-Dynamic%20Planner-10B981?style=for-the-badge)
@@ -13,7 +14,7 @@
 
 RAGTUNE is a domain-agnostic Enterprise Knowledge Intelligence Platform engineered for organizations to query, reason, and execute evidence-backed decisions across structured SQL databases and unstructured enterprise documents.
 
-Unlike simple conversational chatbots, RAGTUNE is a deterministic, secure, and transparent intelligence platform combining an Enterprise Text-to-SQL Engine, a Production-Grade Hybrid Retrieval Engine, an Intent Router, multi-agent orchestration, an 8-stage Input Security Pipeline, an Intelligent Multi-Layer Caching System, a 9-layer Guardrails system, Explainable AI (XAI) execution tracing, and Human-in-the-Loop (HITL) approval workflows.
+Unlike simple conversational chatbots, RAGTUNE is a deterministic, secure, and transparent intelligence platform combining a Reflection & Verification Engine (Self-RAG & CRAG), an Enterprise Text-to-SQL Engine, a Production-Grade Hybrid Retrieval Engine, an Intent Router, multi-agent orchestration, an 8-stage Input Security Pipeline, an Intelligent Multi-Layer Caching System, a 9-layer Guardrails system, Explainable AI (XAI) execution tracing, and Human-in-the-Loop (HITL) approval workflows.
 
 ![RAGTUNE Dashboard Interface](docs/images/dashboard.png)
 
@@ -21,6 +22,7 @@ Unlike simple conversational chatbots, RAGTUNE is a deterministic, secure, and t
 
 ## Table of Contents
 - [Platform Architecture](#platform-architecture)
+- [Reflection, Verification & Quality Assurance Engine](#reflection-verification--quality-assurance-engine)
 - [Enterprise Text-to-SQL Engine](#enterprise-text-to-sql-engine)
 - [Enterprise Hybrid Retrieval Engine](#enterprise-hybrid-retrieval-engine)
 - [Intent Router & Query Planning Engine](#intent-router--query-planning-engine)
@@ -38,7 +40,7 @@ Unlike simple conversational chatbots, RAGTUNE is a deterministic, secure, and t
 
 ## Platform Architecture
 
-RAGTUNE is built around an event-driven multi-agent state machine powered by LangGraph. All incoming user requests pass through a centralized Input Security Pipeline, an Intelligent Multi-Layer Cache, an Intent Router, and an Enterprise Text-to-SQL Engine / Hybrid Retrieval Engine.
+RAGTUNE is built around an event-driven multi-agent state machine powered by LangGraph. All incoming user requests pass through a centralized Input Security Pipeline, an Intelligent Multi-Layer Cache, an Intent Router, Execution Engines, and a Reflection & Verification Quality Assurance Engine.
 
 ![RAGTUNE Platform Architecture](docs/images/architecture.png)
 
@@ -57,20 +59,25 @@ graph TD
     OrchestrationEngine -->|Structured Query| Text2SQL[Enterprise Text-to-SQL Engine]
     OrchestrationEngine -->|Unstructured Query| HybridRetriever[Enterprise Hybrid Retrieval Engine]
     
-    Text2SQL --> SchemaIntrospector[Schema Discovery & Semantic Mapper]
-    SchemaIntrospector --> SQLGenerator[Dialect-Aware Read-Only SQL Generator]
-    SQLGenerator --> Validator[Multi-Stage SQL Validator & AST Parser]
-    Validator --> ExecEngine[Read-Only Database Execution Engine]
-    ExecEngine --> ResultInterpreter[Result Formatter & Tabular Packaging]
-    
-    ResultInterpreter --> EvaluationNode[Validation & Quality Evaluation Node]
+    Text2SQL --> EvaluationNode[Validation & Quality Evaluation Node]
     HybridRetriever --> EvaluationNode
     
-    EvaluationNode -- High Quality --> SynthesisNode[Response Synthesis Node]
-    EvaluationNode -- Low Confidence / Policy Flag --> HITLGate[Human-in-the-Loop Approval Gate]
+    EvaluationNode --> VerificationEngine[Reflection & Verification QA Engine]
+    
+    VerificationEngine --> GroundingVerifier[Groundedness & Citation Verifier]
+    GroundingVerifier --> SelfRAG[Self-RAG Reflection Subsystem]
+    SelfRAG --> HallucinationDetector[Hallucination & Numerical Discrepancy Scanner]
+    HallucinationDetector --> CRAGEvaluator[Corrective RAG - CRAG Re-Retrieval Evaluator]
+    
+    CRAGEvaluator -- Low Evidence Quality --> CRAGTrigger[Trigger Target Re-Retrieval]
+    CRAGEvaluator -- Evidence Sufficient --> DecisionMatrix[Quality Decision Matrix]
+    
+    DecisionMatrix -- Action = APPROVE --> SynthesisNode[Response Synthesis Node]
+    DecisionMatrix -- Action = ESCALATE_HITL --> HITLGate[Human-in-the-Loop Approval Gate]
+    DecisionMatrix -- Action = REJECT / REGENERATE --> FallbackNode[Graceful Fallback Node]
     
     HITLGate -- Operator Approved --> SynthesisNode
-    HITLGate -- Operator Rejected --> FallbackNode[Graceful Fallback Node]
+    HITLGate -- Operator Rejected --> FallbackNode
     
     SynthesisNode --> Client
     FallbackNode --> Client
@@ -78,38 +85,48 @@ graph TD
 
 ---
 
-## Enterprise Text-to-SQL Engine
+## Reflection, Verification & Quality Assurance Engine
 
-The Enterprise Text-to-SQL Engine (`text2sql/`) translates natural language analytics questions into validated, read-only SQL queries, executes them securely over relational databases, and packages structured tabular results with data citations and execution statistics.
+The Reflection, Verification & Quality Assurance Engine (`verification/`) acts as an independent reviewer evaluating generated responses before delivery to enterprise users. It evaluates factual grounding, detects hallucinations, performs Self-RAG reflection loops, and triggers Corrective RAG (CRAG) selective re-retrieval when context is insufficient.
 
 ```mermaid
 sequenceDiagram
-    participant Planner as Query Planner
-    participant Schema as Schema Introspector
-    participant Gen as SQL Generator
-    participant Val as SQL Validator
-    participant Exec as DB Execution Engine
-    participant Interp as Result Interpreter
+    participant Synthesizer as Reasoning Engine
+    participant Verifier as Groundedness Verifier
+    participant SelfRAG as Self-RAG Reflector
+    participant CRAG as CRAG Evaluator
+    participant Decision as Decision Matrix
+    participant Report as Quality Report
 
-    Planner->>Schema: Query & Workspace SecurityContext
-    Schema->>Gen: Matched Tables, Columns & Semantic Mappings
-    Gen->>Gen: Synthesize Read-Only SELECT Query
-    Gen->>Val: Validate Generated SQL
-    Val->>Val: AST Parse, Check SELECT-Only, Cap Limit & Check RBAC
-    Val-->>Exec: Validated Safe SQL Statement
-    Exec->>Exec: Run Read-Only Transaction with Timeout
-    Exec-->>Interp: Raw Cursor Rows & Column Headers
-    Interp->>Interp: Format Data Table, Summaries & Citations
-    Interp-->>Planner: Return StructuredSQLResult + Telemetry
+    Synthesizer->>Verifier: Generated Narrative + Evidence Context
+    Verifier->>Verifier: Validate Sentence Grounding & Citations
+    Verifier->>SelfRAG: Sentence Claims + Source Chunks
+    SelfRAG->>SelfRAG: Compute Self-RAG Reflection Tokens & Utility Score
+    SelfRAG->>CRAG: Evaluate Evidence Sufficiency
+    alt Evidence Insufficient (CRAG Trigger)
+        CRAG-->>Decision: Action = TRIGGER_CRAG_RE_RETRIEVAL
+    else Evidence Sufficient
+        CRAG->>Decision: Pass to Quality Scoring
+        Decision->>Decision: Compute Composite Quality Score & Apply Matrix
+    end
+    Decision->>Report: Generate QualityReport (Scores, Violations, Action)
+    Report-->>Synthesizer: Return Validated QualityReport
 ```
 
-### Core Text-to-SQL Subsystems:
-1. **Domain & Data Schemas (`text2sql/domain.py`)**: `ColumnSchema`, `TableSchema`, `SQLValidationResult`, `SQLExecutionMetrics`, and `StructuredSQLResult`.
-2. **Schema Intelligence Engine (`text2sql/schema.py`)**: Introspects relational database tables, columns, primary/foreign keys, and maps semantic business terminology.
-3. **Dialect-Aware SQL Generator (`text2sql/generator.py`)**: Synthesizes read-only SELECT queries featuring CTEs, aggregations (`SUM`, `AVG`, `COUNT`), `GROUP BY`, `ORDER BY`, and parameterized filters.
-4. **Multi-Stage AST Validator (`text2sql/validator.py`)**: AST parsing via `sqlglot` to strictly enforce **READ-ONLY SELECT** queries (rejecting `DROP`, `UPDATE`, `DELETE`, `INSERT`, `ALTER`, `TRUNCATE`), cap row limits (max 100), and check table/column permissions.
-5. **Secure Read-Only Execution Engine (`text2sql/execution.py`)**: Executes validated read-only SQL statements against relational databases with statement timeouts.
-6. **Result Interpretation Layer (`text2sql/interpreter.py`)**: Packages raw database cursor rows into structured data tables, column definitions, statistical summaries, data citations, and execution telemetry metrics.
+### Core Verification Subsystems:
+1. **Domain & Report Schemas (`verification/domain.py`)**: `VerificationClaim`, `ReflectionToken`, `QualityMetrics`, `QualityReport`, and `VerificationAction`.
+2. **Groundedness Verifier (`verification/grounding.py`)**: Validates sentence-by-sentence factual grounding against source document chunks and database rows. Calculates citation precision and coverage.
+3. **Self-RAG Reflection Subsystem (`verification/self_rag.py`)**: Evaluates answer completeness, unsupported conclusions, and reflection tokens (`[IS_SUPPORTED]`, `[IS_RELEVANT]`, `[UTILITY]`).
+4. **Hallucination Detector (`verification/hallucination.py`)**: Deterministic scanner detecting invented facts, numerical discrepancies, cross-source contradictions, and unreferenced claims.
+5. **Corrective RAG (CRAG) Evaluator (`verification/crag.py`)**: Evaluates evidence quality scores. If context relevance is low or insufficient, triggers CRAG selective re-retrieval.
+6. **Quality Matrix Scoring Engine (`verification/scoring.py`)**: Computes composite Quality Score ($0.0 - 1.0$) across Groundedness, Faithfulness, Citation Coverage, Relevance, and Consistency.
+7. **Decision Matrix Engine (`verification/decision.py`)**: Maps composite scores to execution actions (`APPROVE`, `APPROVE_WITH_WARNING`, `REGENERATE`, `TRIGGER_CRAG_RE_RETRIEVAL`, `ESCALATE_HITL`, `REJECT`).
+
+---
+
+## Enterprise Text-to-SQL Engine
+
+The Enterprise Text-to-SQL Engine (`text2sql/`) translates natural language analytics questions into validated, read-only SQL queries, executes them securely over relational databases, and packages structured tabular results with data citations and execution statistics.
 
 ---
 
@@ -193,6 +210,7 @@ RAGTUNE enforces a 9-layer security boundary evaluated across pre-execution and 
 ## Core Technology Stack
 
 - **Backend Gateway**: FastAPI, Pydantic v2, Uvicorn
+- **Reflection & Verification Engine**: Self-RAG Reflection Subsystem, CRAG Evaluator, Groundedness Verifier, Hallucination Detector
 - **Enterprise Text-to-SQL Engine**: AST Parser (`sqlglot`), Schema Introspector, Read-Only SQLExecutionEngine
 - **Hybrid Retrieval Engine**: Dense Vector Search, BM25 Lexical Sparse Search, RRF Fusion ($k=60$), Cross-Encoder Re-Ranker
 - **Intent Router & Planner**: Dynamic Capability Registry, Pattern Intent Classifier, Strategy Decision Engine
@@ -236,11 +254,11 @@ Access the interactive Web Dashboard in your browser: `http://localhost:8000`
 Execute an intelligence query via the command line interface:
 
 ```bash
-python main.py --query "What were our total sales revenue in Q3 across North America?"
+python main.py --query "What is our uptime commitment for Acme Enterprise under SLA terms?"
 ```
 
 ### 5. Run Automated Test Suite
-Execute the full test suite covering Text-to-SQL, Hybrid Retrieval, Intent Router & Planning, LangGraph Workflow Orchestration, Intelligent Cache, Input Security Pipeline, IAM, authentication, token rotation, RBAC, guardrails, agents, and REST APIs:
+Execute the full test suite covering Reflection & Verification, Text-to-SQL, Hybrid Retrieval, Intent Router & Planning, LangGraph Workflow Orchestration, Intelligent Cache, Input Security Pipeline, IAM, authentication, token rotation, RBAC, guardrails, agents, and REST APIs:
 
 ```bash
 python -m pytest tests/ -v
