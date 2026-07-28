@@ -212,6 +212,9 @@ class OrganizationService:
         """Accepts invitation token and adds user to Organization and Workspace."""
         token_hash = CryptoService.hash_token(raw_token)
 
+        inv_id = None
+        inv_org_id = None
+
         with self.repo.get_session() as db:
             inv = db.query(InvitationORM).filter(InvitationORM.token_hash == token_hash).first()
             if not inv or inv.status != InvitationStatus.PENDING.value:
@@ -221,6 +224,9 @@ class OrganizationService:
                 inv.status = InvitationStatus.EXPIRED.value
                 db.commit()
                 return False, "Invitation token has expired"
+
+            inv_id = inv.invitation_id
+            inv_org_id = inv.org_id
 
             # Add to Organization Membership if not already member
             existing_org_mem = db.query(OrganizationMemberORM).filter(
@@ -255,8 +261,8 @@ class OrganizationService:
             actor_id=accepting_user_id,
             event_type="INVITATION_ACCEPTED",
             resource_type="INVITATION",
-            resource_id=inv.invitation_id,
-            org_id=inv.org_id
+            resource_id=inv_id,
+            org_id=inv_org_id
         )
 
         return True, "Invitation accepted successfully"
