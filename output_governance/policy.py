@@ -5,7 +5,7 @@ Evaluates enterprise compliance policies, workspace restrictions, and export con
 
 from typing import Tuple, List, Optional
 from output_governance.domain import PolicyDecision
-from auth.domain.models import SecurityContext
+from auth.domain.models import SecurityContext, UserStatus
 
 
 class EnterprisePolicyEngine:
@@ -26,7 +26,7 @@ class EnterprisePolicyEngine:
             return PolicyDecision.BLOCK, f"Policy Violation: {moderation_violations[0]}"
 
         # 2. Workspace User Active Status Check
-        if security_context and not security_context.is_active:
-            return PolicyDecision.BLOCK, "Policy Violation: SecurityContext account is suspended."
+        if security_context and security_context.status != UserStatus.ACTIVE:
+            return PolicyDecision.BLOCK, "Policy Violation: SecurityContext account is suspended or inactive."
 
         return PolicyDecision.ALLOW, "Policy compliance checks passed."
