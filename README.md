@@ -1,6 +1,7 @@
 # RAGTUNE - Enterprise Knowledge Intelligence Platform
 
 ![RAGTUNE Platform](https://img.shields.io/badge/RAGTUNE-Enterprise%20v1.0-6366F1?style=for-the-badge)
+![Enterprise Text--to--SQL](https://img.shields.io/badge/Text--to--SQL-AST%20Read--Only%20Engine-10B981?style=for-the-badge)
 ![Hybrid Retrieval](https://img.shields.io/badge/Hybrid%20Retrieval-Dense%20%2B%20BM25%20%2B%20RRF-10B981?style=for-the-badge)
 ![Intent Router](https://img.shields.io/badge/Intent%20Router-Dynamic%20Planner-10B981?style=for-the-badge)
 ![LangGraph Orchestration](https://img.shields.io/badge/Orchestration-LangGraph%20StateGraph-10B981?style=for-the-badge)
@@ -12,7 +13,7 @@
 
 RAGTUNE is a domain-agnostic Enterprise Knowledge Intelligence Platform engineered for organizations to query, reason, and execute evidence-backed decisions across structured SQL databases and unstructured enterprise documents.
 
-Unlike simple conversational chatbots, RAGTUNE is a deterministic, secure, and transparent intelligence platform combining a Production-Grade Hybrid Retrieval Engine, an Intent Router, multi-agent orchestration, Text-to-SQL synthesis, an 8-stage Input Security Pipeline, an Intelligent Multi-Layer Caching System, a 9-layer Guardrails system, Explainable AI (XAI) execution tracing, and Human-in-the-Loop (HITL) approval workflows.
+Unlike simple conversational chatbots, RAGTUNE is a deterministic, secure, and transparent intelligence platform combining an Enterprise Text-to-SQL Engine, a Production-Grade Hybrid Retrieval Engine, an Intent Router, multi-agent orchestration, an 8-stage Input Security Pipeline, an Intelligent Multi-Layer Caching System, a 9-layer Guardrails system, Explainable AI (XAI) execution tracing, and Human-in-the-Loop (HITL) approval workflows.
 
 ![RAGTUNE Dashboard Interface](docs/images/dashboard.png)
 
@@ -20,6 +21,7 @@ Unlike simple conversational chatbots, RAGTUNE is a deterministic, secure, and t
 
 ## Table of Contents
 - [Platform Architecture](#platform-architecture)
+- [Enterprise Text-to-SQL Engine](#enterprise-text-to-sql-engine)
 - [Enterprise Hybrid Retrieval Engine](#enterprise-hybrid-retrieval-engine)
 - [Intent Router & Query Planning Engine](#intent-router--query-planning-engine)
 - [Workflow Orchestration Engine](#workflow-orchestration-engine)
@@ -36,7 +38,7 @@ Unlike simple conversational chatbots, RAGTUNE is a deterministic, secure, and t
 
 ## Platform Architecture
 
-RAGTUNE is built around an event-driven multi-agent state machine powered by LangGraph. All incoming user requests pass through a centralized Input Security Pipeline, an Intelligent Multi-Layer Cache, an Intent Router, and an Enterprise Hybrid Retrieval Engine.
+RAGTUNE is built around an event-driven multi-agent state machine powered by LangGraph. All incoming user requests pass through a centralized Input Security Pipeline, an Intelligent Multi-Layer Cache, an Intent Router, and an Enterprise Text-to-SQL Engine / Hybrid Retrieval Engine.
 
 ![RAGTUNE Platform Architecture](docs/images/architecture.png)
 
@@ -52,17 +54,17 @@ graph TD
     IntentRouter --> ExecPlan[Structured Execution Plan Model]
     ExecPlan --> OrchestrationEngine[LangGraph Workflow Orchestration Engine]
     
+    OrchestrationEngine -->|Structured Query| Text2SQL[Enterprise Text-to-SQL Engine]
     OrchestrationEngine -->|Unstructured Query| HybridRetriever[Enterprise Hybrid Retrieval Engine]
-    OrchestrationEngine -->|Structured Query| SQLAgent[Text-to-SQL Engine Node]
     
-    HybridRetriever --> QueryUnderstanding[Query Normalization & HyDE Expansion]
-    QueryUnderstanding --> SearchEngine[Dual-Path Dense Vector + BM25 Sparse Search]
-    SearchEngine --> RRF[Reciprocal Rank Fusion RRF k=60]
-    RRF --> CrossEncoder[Cross-Encoder Feature Re-Ranker]
-    CrossEncoder --> ContextBuilder[Context Construction & Citation Engine]
+    Text2SQL --> SchemaIntrospector[Schema Discovery & Semantic Mapper]
+    SchemaIntrospector --> SQLGenerator[Dialect-Aware Read-Only SQL Generator]
+    SQLGenerator --> Validator[Multi-Stage SQL Validator & AST Parser]
+    Validator --> ExecEngine[Read-Only Database Execution Engine]
+    ExecEngine --> ResultInterpreter[Result Formatter & Tabular Packaging]
     
-    ContextBuilder --> EvaluationNode[Validation & Quality Evaluation Node]
-    SQLAgent --> EvaluationNode
+    ResultInterpreter --> EvaluationNode[Validation & Quality Evaluation Node]
+    HybridRetriever --> EvaluationNode
     
     EvaluationNode -- High Quality --> SynthesisNode[Response Synthesis Node]
     EvaluationNode -- Low Confidence / Policy Flag --> HITLGate[Human-in-the-Loop Approval Gate]
@@ -76,38 +78,44 @@ graph TD
 
 ---
 
-## Enterprise Hybrid Retrieval Engine
+## Enterprise Text-to-SQL Engine
 
-The Enterprise Hybrid Retrieval Engine (`retrieval/`) discovers, ranks, re-ranks, and packages grounded evidence chunks from enterprise documents while enforcing multi-tenant row-level security isolation.
+The Enterprise Text-to-SQL Engine (`text2sql/`) translates natural language analytics questions into validated, read-only SQL queries, executes them securely over relational databases, and packages structured tabular results with data citations and execution statistics.
 
 ```mermaid
 sequenceDiagram
     participant Planner as Query Planner
-    participant HyDE as Query Analyser & HyDE
-    participant Search as Dense & Sparse Search
-    participant Fusion as RRF Fusion
-    participant ReRanker as CrossEncoder ReRanker
-    participant Context as Context Builder
+    participant Schema as Schema Introspector
+    participant Gen as SQL Generator
+    participant Val as SQL Validator
+    participant Exec as DB Execution Engine
+    participant Interp as Result Interpreter
 
-    Planner->>HyDE: Input Query & Workspace Scope
-    HyDE->>HyDE: Analyze Query & Generate HyDE Expansion
-    HyDE->>Search: Execute Parallel Dense + BM25 Search
-    Search-->>Fusion: Dense Candidates + Sparse Candidates
-    Fusion->>Fusion: Merge via Reciprocal Rank Fusion (k=60)
-    Fusion->>ReRanker: Re-Rank Top Candidate Chunks
-    ReRanker-->>Context: Ranked Evidence Chunks with Scores
-    Context->>Context: Deduplicate, Fit Token Budget & Compute Confidence
-    Context-->>Planner: Return EvidencePackage (Chunks, Citations, Metrics)
+    Planner->>Schema: Query & Workspace SecurityContext
+    Schema->>Gen: Matched Tables, Columns & Semantic Mappings
+    Gen->>Gen: Synthesize Read-Only SELECT Query
+    Gen->>Val: Validate Generated SQL
+    Val->>Val: AST Parse, Check SELECT-Only, Cap Limit & Check RBAC
+    Val-->>Exec: Validated Safe SQL Statement
+    Exec->>Exec: Run Read-Only Transaction with Timeout
+    Exec-->>Interp: Raw Cursor Rows & Column Headers
+    Interp->>Interp: Format Data Table, Summaries & Citations
+    Interp-->>Planner: Return StructuredSQLResult + Telemetry
 ```
 
-### Core Retrieval Subsystems:
-1. **Domain & Evidence Models (`retrieval/domain.py`)**: `DocumentChunk`, `SearchCandidate`, `CitationReference`, `RetrievalMetrics`, and `EvidencePackage`.
-2. **Query Understanding & HyDE Expander (`retrieval/query_analysis.py`)**: Normalization, keyword extraction, and selective Hypothetical Document Expansion (HyDE) for complex queries.
-3. **Dual-Path Hybrid Search (`retrieval/search.py`)**: Dense Vector Similarity Search combined with BM25 Lexical Keyword Search under strict multi-tenant workspace isolation.
-4. **Reciprocal Rank Fusion (`retrieval/fusion.py`)**: Merges dense and sparse candidate rankings using $RRF\_Score(d) = \sum \frac{1}{k + r(d)}$ with $k=60$.
-5. **Cross-Encoder Re-Ranker (`retrieval/rerank.py`)**: Cross-Encoder feature re-ranker scoring query-chunk candidate pairs.
-6. **Intelligent Context Construction (`retrieval/context.py`)**: Assembles citation-preserved context windows, enforces token budgets (e.g. max 1,500 tokens), deduplicates text snippets, and computes retrieval confidence.
-7. **IR Evaluation Subsystem (`retrieval/eval.py`)**: Calculates Precision@K, Recall@K, MRR (Mean Reciprocal Rank), and nDCG metrics.
+### Core Text-to-SQL Subsystems:
+1. **Domain & Data Schemas (`text2sql/domain.py`)**: `ColumnSchema`, `TableSchema`, `SQLValidationResult`, `SQLExecutionMetrics`, and `StructuredSQLResult`.
+2. **Schema Intelligence Engine (`text2sql/schema.py`)**: Introspects relational database tables, columns, primary/foreign keys, and maps semantic business terminology.
+3. **Dialect-Aware SQL Generator (`text2sql/generator.py`)**: Synthesizes read-only SELECT queries featuring CTEs, aggregations (`SUM`, `AVG`, `COUNT`), `GROUP BY`, `ORDER BY`, and parameterized filters.
+4. **Multi-Stage AST Validator (`text2sql/validator.py`)**: AST parsing via `sqlglot` to strictly enforce **READ-ONLY SELECT** queries (rejecting `DROP`, `UPDATE`, `DELETE`, `INSERT`, `ALTER`, `TRUNCATE`), cap row limits (max 100), and check table/column permissions.
+5. **Secure Read-Only Execution Engine (`text2sql/execution.py`)**: Executes validated read-only SQL statements against relational databases with statement timeouts.
+6. **Result Interpretation Layer (`text2sql/interpreter.py`)**: Packages raw database cursor rows into structured data tables, column definitions, statistical summaries, data citations, and execution telemetry metrics.
+
+---
+
+## Enterprise Hybrid Retrieval Engine
+
+The Enterprise Hybrid Retrieval Engine (`retrieval/`) discovers, ranks, re-ranks, and packages grounded evidence chunks from enterprise documents while enforcing multi-tenant row-level security isolation.
 
 ---
 
@@ -185,6 +193,7 @@ RAGTUNE enforces a 9-layer security boundary evaluated across pre-execution and 
 ## Core Technology Stack
 
 - **Backend Gateway**: FastAPI, Pydantic v2, Uvicorn
+- **Enterprise Text-to-SQL Engine**: AST Parser (`sqlglot`), Schema Introspector, Read-Only SQLExecutionEngine
 - **Hybrid Retrieval Engine**: Dense Vector Search, BM25 Lexical Sparse Search, RRF Fusion ($k=60$), Cross-Encoder Re-Ranker
 - **Intent Router & Planner**: Dynamic Capability Registry, Pattern Intent Classifier, Strategy Decision Engine
 - **Orchestration Engine**: LangGraph StateGraph Framework, State Checkpointer
@@ -227,11 +236,11 @@ Access the interactive Web Dashboard in your browser: `http://localhost:8000`
 Execute an intelligence query via the command line interface:
 
 ```bash
-python main.py --query "What is our uptime commitment for Acme Enterprise under SLA terms?"
+python main.py --query "What were our total sales revenue in Q3 across North America?"
 ```
 
 ### 5. Run Automated Test Suite
-Execute the full test suite covering Hybrid Retrieval, Intent Router & Planning, LangGraph Workflow Orchestration, Intelligent Cache, Input Security Pipeline, IAM, authentication, token rotation, RBAC, guardrails, Text-to-SQL, agents, and REST APIs:
+Execute the full test suite covering Text-to-SQL, Hybrid Retrieval, Intent Router & Planning, LangGraph Workflow Orchestration, Intelligent Cache, Input Security Pipeline, IAM, authentication, token rotation, RBAC, guardrails, agents, and REST APIs:
 
 ```bash
 python -m pytest tests/ -v
