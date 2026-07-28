@@ -19,7 +19,7 @@ This is **NOT** a simple chatbot. It is a deterministic, secure, and transparent
 
 ---
 
-## 📋 Table of Contents
+##  Table of Contents
 - [Architecture Overview](#-architecture-overview)
 - [9-Layer Enterprise Guardrails Pipeline](#-9-layer-enterprise-guardrails-pipeline)
 - [Quick Start Guide](#-quick-start-guide)
@@ -28,7 +28,7 @@ This is **NOT** a simple chatbot. It is a deterministic, secure, and transparent
 
 ---
 
-## 🏛️ Architecture Overview
+##  Architecture Overview
 
 ```mermaid
 graph TD
@@ -66,7 +66,7 @@ graph TD
 
 ---
 
-## 🛡️ 9-Layer Enterprise Guardrails Pipeline
+##  9-Layer Enterprise Guardrails Pipeline
 
 | Layer | Guardrail Name | Scope | Description |
 | :--- | :--- | :--- | :--- |
@@ -82,7 +82,7 @@ graph TD
 
 ---
 
-## 🚀 Quick Start Guide
+##  Quick Start Guide
 
 ### 1. Installation
 Ensure Python 3.11+ is installed. Clone the repository and install dependencies:
@@ -125,7 +125,7 @@ python -m pytest tests/ -v
 
 ---
 
-## 📡 REST API Documentation
+##  REST API Documentation
 
 ### Query Intelligence Endpoint
 - **URL**: `POST /api/v1/query`
@@ -157,5 +157,5 @@ python -m pytest tests/ -v
 
 ---
 
-## 📄 License
+##  License
 Released under the MIT License. Built for enterprise knowledge intelligence.
