@@ -4,8 +4,9 @@ Manages workflow suspension, approval ticket generation, operator review queues,
 """
 
 import time
+import uuid
 import threading
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from pydantic import BaseModel, Field
 
 
@@ -34,20 +35,21 @@ class HumanApprovalManager:
         tenant_id: str,
         workspace_id: str,
         user_query: str,
-        reason: str
+        reason: str,
+        ticket_id: Optional[str] = None
     ) -> HITLTicket:
         """Creates and registers a new pending HITL review ticket."""
         with self._lock:
-            ticket_id = f"hitl_{len(self._tickets) + 1}_{workflow_id[:8]}"
+            t_id = ticket_id if ticket_id else f"hitl_{uuid.uuid4().hex[:8]}"
             ticket = HITLTicket(
-                ticket_id=ticket_id,
+                ticket_id=t_id,
                 workflow_id=workflow_id,
                 tenant_id=tenant_id,
                 workspace_id=workspace_id,
                 user_query=user_query,
                 reason=reason
             )
-            self._tickets[ticket_id] = ticket
+            self._tickets[t_id] = ticket
             return ticket
 
     def get_pending_tickets(self, tenant_id: Optional[str] = None) -> List[HITLTicket]:
@@ -64,7 +66,7 @@ class HumanApprovalManager:
         operator_id: str,
         decision: str,  # "APPROVED" or "REJECTED"
         notes: Optional[str] = None
-    ) -> Tuple_Bool_Ticket:
+    ) -> Tuple[bool, Optional[HITLTicket], str]:
         """Submits an operator decision ('APPROVED' or 'REJECTED') for a ticket."""
         with self._lock:
             ticket = self._tickets.get(ticket_id)
@@ -79,6 +81,3 @@ class HumanApprovalManager:
             ticket.operator_notes = notes
             ticket.resolved_at = time.time()
             return True, ticket, f"Ticket {decision} successfully"
-
-
-Tuple_Bool_Ticket = tuple[bool, Optional[HITLTicket], str]
