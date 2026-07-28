@@ -1,6 +1,7 @@
 # RAGTUNE - Enterprise Knowledge Intelligence Platform
 
 ![RAGTUNE Platform](https://img.shields.io/badge/RAGTUNE-Enterprise%20v1.0-6366F1?style=for-the-badge)
+![Intelligent Cache](https://img.shields.io/badge/Intelligent%20Cache-L1--L2%20Multi--Tier-10B981?style=for-the-badge)
 ![Input Security Pipeline](https://img.shields.io/badge/Input%20Security-8--Stage%20Defense-10B981?style=for-the-badge)
 ![IAM & Security](https://img.shields.io/badge/IAM-Production%20Grade-10B981?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-MIT-10B981?style=for-the-badge)
@@ -9,7 +10,7 @@
 
 RAGTUNE is a domain-agnostic Enterprise Knowledge Intelligence Platform engineered for organizations to query, reason, and execute evidence-backed decisions across structured SQL databases and unstructured enterprise documents.
 
-Unlike simple conversational chatbots, RAGTUNE is a deterministic, secure, and transparent intelligence platform combining multi-agent orchestration, Text-to-SQL synthesis, hybrid retrieval, an 8-stage Input Security Pipeline, a 9-layer Guardrails system, Explainable AI (XAI) execution tracing, and Human-in-the-Loop (HITL) approval workflows.
+Unlike simple conversational chatbots, RAGTUNE is a deterministic, secure, and transparent intelligence platform combining multi-agent orchestration, Text-to-SQL synthesis, hybrid retrieval, an 8-stage Input Security Pipeline, an Intelligent Multi-Layer Caching System, a 9-layer Guardrails system, Explainable AI (XAI) execution tracing, and Human-in-the-Loop (HITL) approval workflows.
 
 ![RAGTUNE Dashboard Interface](docs/images/dashboard.png)
 
@@ -17,6 +18,7 @@ Unlike simple conversational chatbots, RAGTUNE is a deterministic, secure, and t
 
 ## Table of Contents
 - [Platform Architecture](#platform-architecture)
+- [Intelligent Caching System](#intelligent-caching-system)
 - [Input Security Pipeline](#input-security-pipeline)
 - [Enterprise IAM & Multi-Tenancy](#enterprise-iam--multi-tenancy)
 - [9-Layer Enterprise Guardrails Pipeline](#9-layer-enterprise-guardrails-pipeline)
@@ -29,7 +31,7 @@ Unlike simple conversational chatbots, RAGTUNE is a deterministic, secure, and t
 
 ## Platform Architecture
 
-RAGTUNE is built around an event-driven multi-agent state machine powered by LangGraph. All incoming user requests pass through a centralized Input Security Pipeline before reaching domain execution agents, SQL engines, hybrid retrieval stores, or reasoning modules.
+RAGTUNE is built around an event-driven multi-agent state machine powered by LangGraph. All incoming user requests pass through a centralized Input Security Pipeline and an Intelligent Multi-Layer Cache before reaching domain execution agents, SQL engines, hybrid retrieval stores, or reasoning modules.
 
 ![RAGTUNE Platform Architecture](docs/images/architecture.png)
 
@@ -37,11 +39,12 @@ RAGTUNE is built around an event-driven multi-agent state machine powered by Lan
 graph TD
     Client[Enterprise Web UI / REST API] --> Gateway[FastAPI Gateway & Security Middleware]
     Gateway --> SecurityPipeline[8-Stage Defense-in-Depth Input Security Pipeline]
-    SecurityPipeline --> IAM[Enterprise IAM Layer: Auth, RBAC, Sessions, Rate Limiting]
-    IAM --> Cache[Redis Multi-Tier Cache]
-    Cache -- Cache Hit (0ms) --> Client
-    Cache -- Cache Miss --> G_Pre[Guardrails L1-L4: Injection, PII, Scope, RBAC]
+    SecurityPipeline --> CacheManager[Intelligent Multi-Layer Cache Manager]
     
+    CacheManager -- L1/L2 Cache Hit (0.1ms) --> Client
+    CacheManager -- Cache Miss --> IAM[Enterprise IAM & RBAC Context Verification]
+    
+    IAM --> G_Pre[Guardrails L1-L4: Injection, PII, Scope, RBAC]
     G_Pre --> Router[Intent Router Agent]
     
     Router -->|Structured Query| SQLAgent[Text-to-SQL Engine]
@@ -71,6 +74,40 @@ graph TD
 
 ---
 
+## Intelligent Caching System
+
+The platform features an intelligent, multi-layer caching architecture (`cache/`) positioned immediately after request validation to eliminate redundant LLM inference calls, embedding generation, Text-to-SQL queries, and vector searches:
+
+```mermaid
+graph TD
+    SecurityPipeline[Input Security Pipeline Cleared Request] --> CacheManager[Master Intelligent Cache Manager]
+    
+    CacheManager --> KeyBuilder[Tenant-Isolated Cache Key Generator]
+    KeyBuilder --> L1[Layer 1: Exact Hash Cache - In-Memory / Redis]
+    
+    L1 -- Hit (0.1ms) --> AuditHit[Telemetry: Record Hit & Cost Savings] --> Return[Return Cached Result]
+    
+    L1 -- Miss --> L2[Layer 2: Semantic Vector Cache - Cosine Similarity >= 0.92]
+    L2 -- Hit (1.2ms) --> AuditHit
+    
+    L2 -- Miss --> SingleFlight[Single-Flight Lock - Stampede Prevention]
+    
+    SingleFlight -- Concurrent Duplicate --> Wait[Wait for First Execution Leader] --> Return
+    SingleFlight -- Execution Leader --> Compute[Proceed to Compute Engine]
+    
+    Compute --> CacheWrite[Write Back to Cache with Tags & TTL] --> Return
+```
+
+### Core Caching Subsystems:
+1. **Multi-Tenant Key Isolation (`TenantCacheKeyBuilder`)**: Generates SHA-256 keys in format `ragtune:{tenant_id}:{workspace_id}:{namespace}:{hash}`, preventing cross-tenant data leakage or cache poisoning.
+2. **L1 Exact Match Hash Cache (`InMemoryLRUCacheProvider` / `RedisCacheProvider`)**: Microsecond lookup ($< 0.1\text{ms}$) with thread-safe LRU eviction and sliding/absolute TTL.
+3. **L2 Semantic Vector Cache (`SemanticCacheEngine`)**: Cosine similarity matching ($\ge 0.92$ threshold) enabling response reuse for semantically equivalent near-duplicate queries.
+4. **Single-Flight Coalescing (`SingleFlightLock`)**: Prevents cache stampedes (thundering herd problem). When 1,000 concurrent threads hit a cold cache item, the computation executes **once**, while 999 contenders await and share the result.
+5. **Tag-Based Invalidation (`CacheInvalidationEngine`)**: Event-driven cache purging listening for system events (`document:updated`, `schema:changed`, `user:permissions_changed`, `workspace:deleted`).
+6. **Telemetry & Cost Tracker (`CacheTelemetryTracker`)**: Tracks hit/miss ratios, latency reduction (sec), memory footprint, stampede blocks, and estimated LLM API cost savings ($).
+
+---
+
 ## Input Security Pipeline
 
 All inbound requests enter the system through a centralized 8-stage Defense-in-Depth pipeline (`input_security/`) executing in strict validation sequence before AI orchestration:
@@ -85,31 +122,6 @@ All inbound requests enter the system through a centralized 8-stage Defense-in-D
 | **Stage 6** | **Prompt Inspection & Jailbreak Defense** | Inspects query text for direct/indirect prompt injection, adversarial roleplay (DAN), and system instruction overrides. |
 | **Stage 7** | **PII & PHI Detection & Anonymization** | Detects and dynamically redacts Emails, Phone Numbers, SSNs, Credit Cards, and IP Addresses. |
 | **Stage 8** | **Risk Scoring & Context Enrichment** | Calculates cumulative threat risk score (0-100), assigns Trust Level (HIGH, MEDIUM, LOW, UNTRUSTED), and enriches request context. |
-
-```mermaid
-graph TD
-    Inbound[Inbound HTTP Request] --> Stage1[Stage 1: Payload & Schema Validation]
-    Stage1 -- Malformed / Oversized --> Reject1[400 Bad Request / 413 Payload Too Large]
-    
-    Stage1 -- Valid --> Stage2[Stage 2: Auth & Session Verification]
-    Stage2 -- Unauthenticated / Suspended --> Reject2[401 Unauthorized / 403 Forbidden]
-    
-    Stage2 -- Valid Context --> Stage3[Stage 3: Multi-Tenant RBAC Authorization]
-    Stage3 -- Permission Denied --> Reject3[403 Forbidden]
-    
-    Stage3 -- Authorized --> Stage4[Stage 4: Rate Limiting & Token Budgeting]
-    Stage4 -- Rate / Token Limit Exceeded --> Reject4[429 Too Many Requests]
-    
-    Stage4 -- Within Budget --> Stage5[Stage 5: Normalization & XSS Sanitization]
-    
-    Stage5 --> Stage6[Stage 6: Prompt Inspection & Jailbreak Defense]
-    Stage6 -- High Injection Risk Score --> Flag6[Security Flag / Threat Audit Trigger]
-    
-    Stage6 --> Stage7[Stage 7: PII / PHI Detection & Anonymization]
-    
-    Stage7 --> Stage8[Stage 8: Threat Risk Scoring & Context Enrichment]
-    Stage8 --> Enriched[Enriched Security Request -> Cleared for AI Engine]
-```
 
 ---
 
@@ -148,13 +160,13 @@ RAGTUNE enforces a 9-layer security boundary evaluated across pre-execution and 
 ## Core Technology Stack
 
 - **Backend Gateway**: FastAPI, Pydantic v2, Uvicorn
+- **Intelligent Caching System**: L1 Exact Match LRU Cache, L2 Cosine Semantic Vector Cache, Single-Flight Coalescing Lock, Redis Adapter
 - **Input Security Pipeline**: 8-Stage Defense-in-Depth Framework, Unicode NFKC, Regex Threat Classifiers
 - **Database Persistence**: SQLAlchemy 2.0, SQLite / PostgreSQL
 - **Orchestration**: LangGraph State Graph Framework
 - **Retrieval Engine**: BM25 Sparse Index + Cosine Similarity Vector Store with Reciprocal Rank Fusion (RRF)
 - **Re-Ranking**: Feature-based Cross-Encoder Re-Ranker
 - **SQL Parser**: SQLGlot AST Engine
-- **Caching**: Multi-Tier Redis & In-Memory Caching
 - **Frontend Dashboard**: HTML5, Vanilla CSS Glassmorphism, Modern SPA Architecture
 
 ---
@@ -194,7 +206,7 @@ python main.py --query "What is our uptime commitment for Acme Enterprise under 
 ```
 
 ### 5. Run Automated Test Suite
-Execute the full test suite covering Input Security Pipeline (8 stages), IAM, authentication, token rotation, RBAC, guardrails, Text-to-SQL, hybrid search, agents, and REST APIs:
+Execute the full test suite covering Intelligent Cache (L1/L2, SingleFlight, Tags), Input Security Pipeline (8 stages), IAM, authentication, token rotation, RBAC, guardrails, Text-to-SQL, hybrid search, agents, and REST APIs:
 
 ```bash
 python -m pytest tests/ -v
