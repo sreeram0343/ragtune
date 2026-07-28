@@ -1,6 +1,7 @@
 # RAGTUNE - Enterprise Knowledge Intelligence Platform
 
 ![RAGTUNE Platform](https://img.shields.io/badge/RAGTUNE-Enterprise%20v1.0-6366F1?style=for-the-badge)
+![Input Security Pipeline](https://img.shields.io/badge/Input%20Security-8--Stage%20Defense-10B981?style=for-the-badge)
 ![IAM & Security](https://img.shields.io/badge/IAM-Production%20Grade-10B981?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-MIT-10B981?style=for-the-badge)
 ![Build Status](https://img.shields.io/badge/Build-Passing-10B981?style=for-the-badge)
@@ -8,7 +9,7 @@
 
 RAGTUNE is a domain-agnostic Enterprise Knowledge Intelligence Platform engineered for organizations to query, reason, and execute evidence-backed decisions across structured SQL databases and unstructured enterprise documents.
 
-Unlike simple conversational chatbots, RAGTUNE is a deterministic, secure, and transparent intelligence platform combining multi-agent orchestration, Text-to-SQL synthesis, hybrid retrieval, a 9-layer security guardrails pipeline, Explainable AI (XAI) execution tracing, and Human-in-the-Loop (HITL) approval workflows.
+Unlike simple conversational chatbots, RAGTUNE is a deterministic, secure, and transparent intelligence platform combining multi-agent orchestration, Text-to-SQL synthesis, hybrid retrieval, an 8-stage Input Security Pipeline, a 9-layer Guardrails system, Explainable AI (XAI) execution tracing, and Human-in-the-Loop (HITL) approval workflows.
 
 ![RAGTUNE Dashboard Interface](docs/images/dashboard.png)
 
@@ -16,6 +17,7 @@ Unlike simple conversational chatbots, RAGTUNE is a deterministic, secure, and t
 
 ## Table of Contents
 - [Platform Architecture](#platform-architecture)
+- [Input Security Pipeline](#input-security-pipeline)
 - [Enterprise IAM & Multi-Tenancy](#enterprise-iam--multi-tenancy)
 - [9-Layer Enterprise Guardrails Pipeline](#9-layer-enterprise-guardrails-pipeline)
 - [Core Technology Stack](#core-technology-stack)
@@ -27,14 +29,15 @@ Unlike simple conversational chatbots, RAGTUNE is a deterministic, secure, and t
 
 ## Platform Architecture
 
-RAGTUNE is built around an event-driven multi-agent state machine powered by LangGraph. All incoming user requests are processed through pre-execution guardrails, classified by an Intent Router Agent, routed to domain execution agents, synthesized into evidence-backed narratives, and validated through post-execution security guardrails before final trace generation.
+RAGTUNE is built around an event-driven multi-agent state machine powered by LangGraph. All incoming user requests pass through a centralized Input Security Pipeline before reaching domain execution agents, SQL engines, hybrid retrieval stores, or reasoning modules.
 
 ![RAGTUNE Platform Architecture](docs/images/architecture.png)
 
 ```mermaid
 graph TD
     Client[Enterprise Web UI / REST API] --> Gateway[FastAPI Gateway & Security Middleware]
-    Gateway --> IAM[Enterprise IAM Layer: Auth, RBAC, Sessions, Rate Limiting]
+    Gateway --> SecurityPipeline[8-Stage Defense-in-Depth Input Security Pipeline]
+    SecurityPipeline --> IAM[Enterprise IAM Layer: Auth, RBAC, Sessions, Rate Limiting]
     IAM --> Cache[Redis Multi-Tier Cache]
     Cache -- Cache Hit (0ms) --> Client
     Cache -- Cache Miss --> G_Pre[Guardrails L1-L4: Injection, PII, Scope, RBAC]
@@ -68,9 +71,51 @@ graph TD
 
 ---
 
+## Input Security Pipeline
+
+All inbound requests enter the system through a centralized 8-stage Defense-in-Depth pipeline (`input_security/`) executing in strict validation sequence before AI orchestration:
+
+| Stage | Security Stage Name | Technical Scope & Responsibilities |
+| :--- | :--- | :--- |
+| **Stage 1** | **Payload & Schema Validation** | Enforces 2MB maximum payload size limits, validates JSON syntax, and blocks path traversal attempts (`../`). |
+| **Stage 2** | **Authentication & Session Verification** | Validates Bearer access tokens, verifies signature claims, checks DB session revocation, and enforces account active status. |
+| **Stage 3** | **Multi-Tenant RBAC Authorization** | Evaluates Organization and Workspace roles against target endpoint permissions to enforce tenant isolation. |
+| **Stage 4** | **Rate Limiting & Token Budgeting** | Tracks request velocity (max 60 req/min) and caps input token counts (max 4,000 tokens) to prevent Denial-of-Wallet attacks. |
+| **Stage 5** | **Request Normalization & Sanitization** | Applies NFKC Unicode normalization, strips zero-width space bypasses, and sanitizes XSS script tags. |
+| **Stage 6** | **Prompt Inspection & Jailbreak Defense** | Inspects query text for direct/indirect prompt injection, adversarial roleplay (DAN), and system instruction overrides. |
+| **Stage 7** | **PII & PHI Detection & Anonymization** | Detects and dynamically redacts Emails, Phone Numbers, SSNs, Credit Cards, and IP Addresses. |
+| **Stage 8** | **Risk Scoring & Context Enrichment** | Calculates cumulative threat risk score (0-100), assigns Trust Level (HIGH, MEDIUM, LOW, UNTRUSTED), and enriches request context. |
+
+```mermaid
+graph TD
+    Inbound[Inbound HTTP Request] --> Stage1[Stage 1: Payload & Schema Validation]
+    Stage1 -- Malformed / Oversized --> Reject1[400 Bad Request / 413 Payload Too Large]
+    
+    Stage1 -- Valid --> Stage2[Stage 2: Auth & Session Verification]
+    Stage2 -- Unauthenticated / Suspended --> Reject2[401 Unauthorized / 403 Forbidden]
+    
+    Stage2 -- Valid Context --> Stage3[Stage 3: Multi-Tenant RBAC Authorization]
+    Stage3 -- Permission Denied --> Reject3[403 Forbidden]
+    
+    Stage3 -- Authorized --> Stage4[Stage 4: Rate Limiting & Token Budgeting]
+    Stage4 -- Rate / Token Limit Exceeded --> Reject4[429 Too Many Requests]
+    
+    Stage4 -- Within Budget --> Stage5[Stage 5: Normalization & XSS Sanitization]
+    
+    Stage5 --> Stage6[Stage 6: Prompt Inspection & Jailbreak Defense]
+    Stage6 -- High Injection Risk Score --> Flag6[Security Flag / Threat Audit Trigger]
+    
+    Stage6 --> Stage7[Stage 7: PII / PHI Detection & Anonymization]
+    
+    Stage7 --> Stage8[Stage 8: Threat Risk Scoring & Context Enrichment]
+    Stage8 --> Enriched[Enriched Security Request -> Cleared for AI Engine]
+```
+
+---
+
 ## Enterprise IAM & Multi-Tenancy
 
-The platform provides a completely decoupled Identity and Access Management (IAM) trust boundary operating independently from AI reasoning services:
+The platform identity architecture provides a production-ready trust boundary:
 
 - **Multi-Tenant Hierarchy**: Strict isolation across Organization, Workspace, Project, and User entities.
 - **Cryptographic Security**: PBKDF2-HMAC-SHA256 password hashing (600,000 rounds) with random salts and SHA-256 token digest storage.
@@ -103,6 +148,7 @@ RAGTUNE enforces a 9-layer security boundary evaluated across pre-execution and 
 ## Core Technology Stack
 
 - **Backend Gateway**: FastAPI, Pydantic v2, Uvicorn
+- **Input Security Pipeline**: 8-Stage Defense-in-Depth Framework, Unicode NFKC, Regex Threat Classifiers
 - **Database Persistence**: SQLAlchemy 2.0, SQLite / PostgreSQL
 - **Orchestration**: LangGraph State Graph Framework
 - **Retrieval Engine**: BM25 Sparse Index + Cosine Similarity Vector Store with Reciprocal Rank Fusion (RRF)
@@ -148,7 +194,7 @@ python main.py --query "What is our uptime commitment for Acme Enterprise under 
 ```
 
 ### 5. Run Automated Test Suite
-Execute the full test suite covering IAM, authentication, token rotation, RBAC, guardrails, Text-to-SQL, hybrid search, agents, and REST APIs:
+Execute the full test suite covering Input Security Pipeline (8 stages), IAM, authentication, token rotation, RBAC, guardrails, Text-to-SQL, hybrid search, agents, and REST APIs:
 
 ```bash
 python -m pytest tests/ -v
