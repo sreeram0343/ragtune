@@ -1,6 +1,7 @@
 # RAGTUNE - Enterprise Knowledge Intelligence Platform
 
 ![RAGTUNE Platform](https://img.shields.io/badge/RAGTUNE-Enterprise%20v1.0-6366F1?style=for-the-badge)
+![Output Governance](https://img.shields.io/badge/Output%20Governance-Zero--Trust%20Redaction-10B981?style=for-the-badge)
 ![Verification Engine](https://img.shields.io/badge/Verification-Self--RAG%20%2B%20CRAG-10B981?style=for-the-badge)
 ![Enterprise Text--to--SQL](https://img.shields.io/badge/Text--to--SQL-AST%20Read--Only%20Engine-10B981?style=for-the-badge)
 ![Hybrid Retrieval](https://img.shields.io/badge/Hybrid%20Retrieval-Dense%20%2B%20BM25%20%2B%20RRF-10B981?style=for-the-badge)
@@ -14,7 +15,7 @@
 
 RAGTUNE is a domain-agnostic Enterprise Knowledge Intelligence Platform engineered for organizations to query, reason, and execute evidence-backed decisions across structured SQL databases and unstructured enterprise documents.
 
-Unlike simple conversational chatbots, RAGTUNE is a deterministic, secure, and transparent intelligence platform combining a Reflection & Verification Engine (Self-RAG & CRAG), an Enterprise Text-to-SQL Engine, a Production-Grade Hybrid Retrieval Engine, an Intent Router, multi-agent orchestration, an 8-stage Input Security Pipeline, an Intelligent Multi-Layer Caching System, a 9-layer Guardrails system, Explainable AI (XAI) execution tracing, and Human-in-the-Loop (HITL) approval workflows.
+Unlike simple conversational chatbots, RAGTUNE is a deterministic, secure, and transparent intelligence platform combining an Output Security & Response Governance Engine, a Reflection & Verification Engine (Self-RAG & CRAG), an Enterprise Text-to-SQL Engine, a Production-Grade Hybrid Retrieval Engine, an Intent Router, multi-agent orchestration, an 8-stage Input Security Pipeline, an Intelligent Multi-Layer Caching System, a 9-layer Guardrails system, Explainable AI (XAI) execution tracing, and Human-in-the-Loop (HITL) approval workflows.
 
 ![RAGTUNE Dashboard Interface](docs/images/dashboard.png)
 
@@ -22,6 +23,7 @@ Unlike simple conversational chatbots, RAGTUNE is a deterministic, secure, and t
 
 ## Table of Contents
 - [Platform Architecture](#platform-architecture)
+- [Output Security & Response Governance Engine](#output-security--response-governance-engine)
 - [Reflection, Verification & Quality Assurance Engine](#reflection-verification--quality-assurance-engine)
 - [Enterprise Text-to-SQL Engine](#enterprise-text-to-sql-engine)
 - [Enterprise Hybrid Retrieval Engine](#enterprise-hybrid-retrieval-engine)
@@ -40,7 +42,7 @@ Unlike simple conversational chatbots, RAGTUNE is a deterministic, secure, and t
 
 ## Platform Architecture
 
-RAGTUNE is built around an event-driven multi-agent state machine powered by LangGraph. All incoming user requests pass through a centralized Input Security Pipeline, an Intelligent Multi-Layer Cache, an Intent Router, Execution Engines, and a Reflection & Verification Quality Assurance Engine.
+RAGTUNE is built around an event-driven multi-agent state machine powered by LangGraph. All incoming user requests pass through an Input Security Pipeline, an Intelligent Cache, an Intent Router, Execution Engines, a Verification Engine, and an Output Security & Response Governance Engine.
 
 ![RAGTUNE Platform Architecture](docs/images/architecture.png)
 
@@ -63,64 +65,62 @@ graph TD
     HybridRetriever --> EvaluationNode
     
     EvaluationNode --> VerificationEngine[Reflection & Verification QA Engine]
+    VerificationEngine --> OutputGovernance[Output Security & Response Governance Engine]
     
-    VerificationEngine --> GroundingVerifier[Groundedness & Citation Verifier]
-    GroundingVerifier --> SelfRAG[Self-RAG Reflection Subsystem]
-    SelfRAG --> HallucinationDetector[Hallucination & Numerical Discrepancy Scanner]
-    HallucinationDetector --> CRAGEvaluator[Corrective RAG - CRAG Re-Retrieval Evaluator]
+    OutputGovernance --> SchemaValidator[Schema & Payload Integrity Validator]
+    SchemaValidator --> Moderator[Content Toxicity & Prompt Leakage Moderator]
+    Moderator --> PIISecretRedactor[PII & Secret Redactor - Permission Aware]
+    PIISecretRedactor --> PolicyEngine[Enterprise Policy & Compliance Engine]
+    PolicyEngine --> Formatter[Response Formatter - Markdown / JSON]
+    Formatter --> MetadataGen[Governance Metadata Generator]
+    MetadataGen --> AuditLog[Immutable Security Auditor]
     
-    CRAGEvaluator -- Low Evidence Quality --> CRAGTrigger[Trigger Target Re-Retrieval]
-    CRAGEvaluator -- Evidence Sufficient --> DecisionMatrix[Quality Decision Matrix]
-    
-    DecisionMatrix -- Action = APPROVE --> SynthesisNode[Response Synthesis Node]
-    DecisionMatrix -- Action = ESCALATE_HITL --> HITLGate[Human-in-the-Loop Approval Gate]
-    DecisionMatrix -- Action = REJECT / REGENERATE --> FallbackNode[Graceful Fallback Node]
-    
-    HITLGate -- Operator Approved --> SynthesisNode
-    HITLGate -- Operator Rejected --> FallbackNode
-    
-    SynthesisNode --> Client
-    FallbackNode --> Client
+    AuditLog --> Client
 ```
+
+---
+
+## Output Security & Response Governance Engine
+
+The Output Security & Response Governance Engine (`output_governance/`) serves as the zero-trust final security boundary and decision point before API delivery. No response bypasses this layer.
+
+```mermaid
+sequenceDiagram
+    participant Verifier as QA Engine
+    participant Schema as Schema Validator
+    participant Mod as Content Moderator
+    participant Redact as Data Redactor
+    participant Policy as Policy Engine
+    participant Meta as Metadata & Audit
+    participant API as Final API Envelope
+
+    Verifier->>Schema: Verified Response + QualityReport
+    Schema->>Schema: Check Field Completeness & Schema Integrity
+    Schema->>Mod: Scan Narrative Content
+    Mod->>Mod: Evaluate Toxicity & System Leakage Rules
+    Mod->>Redact: Pass Cleaned Text
+    Redact->>Redact: Scan & Redact PII / Secrets / API Keys
+    Redact->>Policy: Enforce Workspace & Tenant Compliance Rules
+    Policy->>Meta: Format Presentation & Attach Governance Metadata
+    Meta->>Meta: Generate Immutable Audit Log Record
+    Meta-->>API: Package Governed API Response Envelope
+```
+
+### Core Subsystems:
+1. **Domain & Envelope Models (`output_governance/domain.py`)**: `PolicyDecision`, `RedactionRecord`, `GovernanceMetadata`, and `GovernedResponseEnvelope`.
+2. **Response Schema Validator (`output_governance/validation.py`)**: Enforces response field completeness, citation integrity, and token window bounds.
+3. **Content Moderator (`output_governance/moderation.py`)**: Scans narrative text for toxic content, hate speech, system prompt leakage, and model policy violations.
+4. **Sensitive Data Redactor (`output_governance/redaction.py`)**: Detects and redacts PII (Emails, Phone numbers, SSNs), API keys, Passwords, and Financial Secrets with permission-aware visibility.
+5. **Enterprise Policy Engine (`output_governance/policy.py`)**: Evaluates Organization, Workspace, and Role-Based compliance rules (`ALLOW`, `WARN_AND_ALLOW`, `BLOCK`).
+6. **Response Formatter (`output_governance/formatter.py`)**: Formats presentation-independent Markdown, JSON, and Tabular response layouts without modifying reasoning logic.
+7. **Governance Metadata Generator (`output_governance/metadata.py`)**: Synthesizes enterprise metadata (Request ID, Workflow ID, Latency, Cost, Quality Score, Audit References).
+8. **Master Governance Engine (`output_governance/engine.py`)**: Orchestrates the zero-trust pipeline into a unified `govern_response()` API.
 
 ---
 
 ## Reflection, Verification & Quality Assurance Engine
 
-The Reflection, Verification & Quality Assurance Engine (`verification/`) acts as an independent reviewer evaluating generated responses before delivery to enterprise users. It evaluates factual grounding, detects hallucinations, performs Self-RAG reflection loops, and triggers Corrective RAG (CRAG) selective re-retrieval when context is insufficient.
-
-```mermaid
-sequenceDiagram
-    participant Synthesizer as Reasoning Engine
-    participant Verifier as Groundedness Verifier
-    participant SelfRAG as Self-RAG Reflector
-    participant CRAG as CRAG Evaluator
-    participant Decision as Decision Matrix
-    participant Report as Quality Report
-
-    Synthesizer->>Verifier: Generated Narrative + Evidence Context
-    Verifier->>Verifier: Validate Sentence Grounding & Citations
-    Verifier->>SelfRAG: Sentence Claims + Source Chunks
-    SelfRAG->>SelfRAG: Compute Self-RAG Reflection Tokens & Utility Score
-    SelfRAG->>CRAG: Evaluate Evidence Sufficiency
-    alt Evidence Insufficient (CRAG Trigger)
-        CRAG-->>Decision: Action = TRIGGER_CRAG_RE_RETRIEVAL
-    else Evidence Sufficient
-        CRAG->>Decision: Pass to Quality Scoring
-        Decision->>Decision: Compute Composite Quality Score & Apply Matrix
-    end
-    Decision->>Report: Generate QualityReport (Scores, Violations, Action)
-    Report-->>Synthesizer: Return Validated QualityReport
-```
-
-### Core Verification Subsystems:
-1. **Domain & Report Schemas (`verification/domain.py`)**: `VerificationClaim`, `ReflectionToken`, `QualityMetrics`, `QualityReport`, and `VerificationAction`.
-2. **Groundedness Verifier (`verification/grounding.py`)**: Validates sentence-by-sentence factual grounding against source document chunks and database rows. Calculates citation precision and coverage.
-3. **Self-RAG Reflection Subsystem (`verification/self_rag.py`)**: Evaluates answer completeness, unsupported conclusions, and reflection tokens (`[IS_SUPPORTED]`, `[IS_RELEVANT]`, `[UTILITY]`).
-4. **Hallucination Detector (`verification/hallucination.py`)**: Deterministic scanner detecting invented facts, numerical discrepancies, cross-source contradictions, and unreferenced claims.
-5. **Corrective RAG (CRAG) Evaluator (`verification/crag.py`)**: Evaluates evidence quality scores. If context relevance is low or insufficient, triggers CRAG selective re-retrieval.
-6. **Quality Matrix Scoring Engine (`verification/scoring.py`)**: Computes composite Quality Score ($0.0 - 1.0$) across Groundedness, Faithfulness, Citation Coverage, Relevance, and Consistency.
-7. **Decision Matrix Engine (`verification/decision.py`)**: Maps composite scores to execution actions (`APPROVE`, `APPROVE_WITH_WARNING`, `REGENERATE`, `TRIGGER_CRAG_RE_RETRIEVAL`, `ESCALATE_HITL`, `REJECT`).
+The Reflection, Verification & Quality Assurance Engine (`verification/`) evaluates factual grounding, detects hallucinations, performs Self-RAG reflection loops, and triggers Corrective RAG (CRAG) selective re-retrieval when context is insufficient.
 
 ---
 
@@ -210,6 +210,7 @@ RAGTUNE enforces a 9-layer security boundary evaluated across pre-execution and 
 ## Core Technology Stack
 
 - **Backend Gateway**: FastAPI, Pydantic v2, Uvicorn
+- **Output Security & Response Governance Engine**: Response Schema Validator, Content Moderator, Sensitive Data Redactor, Policy Engine, Governance Metadata Generator
 - **Reflection & Verification Engine**: Self-RAG Reflection Subsystem, CRAG Evaluator, Groundedness Verifier, Hallucination Detector
 - **Enterprise Text-to-SQL Engine**: AST Parser (`sqlglot`), Schema Introspector, Read-Only SQLExecutionEngine
 - **Hybrid Retrieval Engine**: Dense Vector Search, BM25 Lexical Sparse Search, RRF Fusion ($k=60$), Cross-Encoder Re-Ranker
@@ -258,7 +259,7 @@ python main.py --query "What is our uptime commitment for Acme Enterprise under 
 ```
 
 ### 5. Run Automated Test Suite
-Execute the full test suite covering Reflection & Verification, Text-to-SQL, Hybrid Retrieval, Intent Router & Planning, LangGraph Workflow Orchestration, Intelligent Cache, Input Security Pipeline, IAM, authentication, token rotation, RBAC, guardrails, agents, and REST APIs:
+Execute the full test suite covering Output Governance, Reflection & Verification, Text-to-SQL, Hybrid Retrieval, Intent Router & Planning, LangGraph Workflow Orchestration, Intelligent Cache, Input Security Pipeline, IAM, authentication, token rotation, RBAC, guardrails, agents, and REST APIs:
 
 ```bash
 python -m pytest tests/ -v
