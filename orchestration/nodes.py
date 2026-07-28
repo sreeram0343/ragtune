@@ -36,7 +36,6 @@ def router_node(state: OrchestrationState) -> OrchestrationState:
     state["status"] = WorkflowStatusEnum.ROUTING.value
     query = state.get("user_query", "").lower()
 
-    # Simple heuristic routing based on intent triggers
     if any(k in query for k in ["sales", "revenue", "count", "total", "table", "sql"]):
         intent = "STRUCTURED"
     elif any(k in query for k in ["policy", "document", "contract", "terms", "clause"]):
@@ -52,7 +51,6 @@ def router_node(state: OrchestrationState) -> OrchestrationState:
 def sql_node(state: OrchestrationState) -> OrchestrationState:
     """Structured Text-to-SQL workflow node handler."""
     state["status"] = WorkflowStatusEnum.EXECUTING.value
-    # Simulates structured query execution payload
     state["sql_query"] = "SELECT category, SUM(amount) FROM sales_2024 GROUP BY category;"
     state["sql_result"] = {
         "columns": ["category", "total_sales"],
@@ -88,18 +86,30 @@ def evaluation_node(state: OrchestrationState) -> OrchestrationState:
     """Evaluates answer confidence, factual groundedness, and policy compliance."""
     state["status"] = WorkflowStatusEnum.EVALUATING.value
 
-    # Compute confidence & policy check
-    query = state.get("user_query", "").lower()
-    if "sensitive" in query or "override" in query:
-        eval_score = 0.55
-        requires_hitl = True
-    else:
-        eval_score = 0.92
+    # If decision was already submitted via HITL resumption, preserve operator decision
+    hitl_dec = state.get("hitl_decision")
+    if hitl_dec == "APPROVED":
+        eval_score = 1.0
         requires_hitl = False
+        state["policy_passed"] = True
+    elif hitl_dec == "REJECTED":
+        eval_score = 0.0
+        requires_hitl = False
+        state["policy_passed"] = False
+        state["error_message"] = "Workflow execution was rejected by an authorized human operator."
+    else:
+        query = state.get("user_query", "").lower()
+        if "sensitive" in query or "override" in query:
+            eval_score = 0.55
+            requires_hitl = True
+            state["policy_passed"] = False
+        else:
+            eval_score = 0.92
+            requires_hitl = False
+            state["policy_passed"] = True
 
     state["evaluation_score"] = eval_score
     state["groundedness_score"] = eval_score
-    state["policy_passed"] = eval_score >= 0.70
     state["requires_hitl"] = requires_hitl
 
     if requires_hitl:
@@ -165,8 +175,13 @@ def synthesis_node(state: OrchestrationState) -> OrchestrationState:
 
 def fallback_node(state: OrchestrationState) -> OrchestrationState:
     """Graceful error fallback node."""
-    state["status"] = WorkflowStatusEnum.FAILED.value
-    err_msg = state.get("error_message") or "Workflow execution failed due to an unexpected component error."
-    state["final_response"] = f"System Error Notice: {err_msg}"
+    if state.get("hitl_decision") == "REJECTED":
+        state["status"] = WorkflowStatusEnum.REJECTED.value
+        err_msg = state.get("error_message") or "Workflow execution was rejected by an authorized human operator."
+    else:
+        state["status"] = WorkflowStatusEnum.FAILED.value
+        err_msg = state.get("error_message") or "Workflow execution failed due to an unexpected component error."
+
+    state["final_response"] = f"System Notice: {err_msg}"
     state = _record_node_step(state, "fallback_node", "FAILED", err_msg)
     return state
