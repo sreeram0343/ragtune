@@ -1,128 +1,89 @@
 """
-RAGTUNE - Text-to-SQL Engine
-Generates, validates, repairs, and executes database queries from natural language.
+RAGTUNE Enterprise Text-to-SQL Engine - Master Engine Harness
+Exposes unified execute_structured_query API orchestrating schema discovery, SQL generation, validation, execution, and formatting.
 """
 
-import re
-from typing import Dict, Any, List, Tuple, Optional
-from pydantic import BaseModel
-from storage.db_connector import DBConnector
-from guardrails.layers.l6_sql_safety import SQLSafetyGuard
+import time
+from typing import Optional
+from input_security.framework.stage import EnrichedSecurityRequest
+from text2sql.domain import StructuredSQLResult, SQLExecutionMetrics
+from text2sql.schema import SchemaIntrospector
+from text2sql.generator import SQLGenerator
+from text2sql.validator import SQLValidator
+from text2sql.execution import SQLExecutionEngine
+from text2sql.interpreter import ResultInterpreter
 
 
-class SQLGenerationResult(BaseModel):
-    success: bool
-    generated_sql: str
-    sanitized_sql: str
-    rows: List[Dict[str, Any]] = []
-    columns: List[str] = []
-    row_count: int = 0
-    explanation: str = ""
-    error_message: Optional[str] = None
-    repair_attempted: bool = False
+class EnterpriseText2SQLEngine:
+    def __init__(
+        self,
+        schema_introspector: Optional[SchemaIntrospector] = None,
+        db_path: str = "demo_data/enterprise_db.sqlite"
+    ):
+        self.schema_introspector = schema_introspector if schema_introspector else SchemaIntrospector()
+        self.generator = SQLGenerator()
+        self.validator = SQLValidator(max_row_limit=100)
+        self.execution_engine = SQLExecutionEngine(db_path=db_path)
+        self.interpreter = ResultInterpreter()
 
-
-class Text2SQLEngine:
-    def __init__(self, db_connector: DBConnector):
-        self.db = db_connector
-        self.sql_guard = SQLSafetyGuard()
-
-    def generate_sql_heuristic(self, query: str, schema_summary: str) -> str:
+    def execute_structured_query(
+        self,
+        security_request: EnrichedSecurityRequest
+    ) -> StructuredSQLResult:
         """
-        Synthesizes SQL query based on natural language intent and schema metadata.
+        Main Structured Query API:
+        Translates natural language request into safe read-only SQL, executes it, and packages tabular results.
         """
-        q_lower = query.lower()
-        
-        # Check table matches
-        schema_metadata = self.db.get_schema_metadata()
-        matched_table = None
-        for t in schema_metadata:
-            if t.table_name.lower() in q_lower or t.table_name.lower()[:-1] in q_lower:
-                matched_table = t.table_name
-                break
+        t0 = time.time()
+        query = security_request.sanitized_query
+        sec_ctx = security_request.security_context
 
-        if not matched_table and schema_metadata:
-            # Fallback to first table if none explicitly mentioned
-            matched_table = schema_metadata[0].table_name
+        # 1. Schema Discovery & Table Matching
+        t_gen_start = time.time()
+        matched_tables = self.schema_introspector.match_tables_for_query(query)
+        generated_sql, params = self.generator.generate_sql(query, matched_tables)
+        t_gen_end = time.time()
 
-        if not matched_table:
-            return "SELECT 1 AS default_query;"
+        # 2. Multi-Stage SQL Validation & AST Security Check
+        t_val_start = time.time()
+        val_result = self.validator.validate_sql(generated_sql, security_context=sec_ctx)
+        t_val_end = time.time()
 
-        # Count intent
-        if "count" in q_lower or "how many" in q_lower or "total number" in q_lower:
-            return f"SELECT COUNT(*) AS total_count FROM {matched_table};"
-
-        # Revenue / Sales sum intent
-        if ("revenue" in q_lower or "sales" in q_lower or "amount" in q_lower or "total" in q_lower):
-            # Check for revenue/amount column
-            table_info = next((t for t in schema_metadata if t.table_name == matched_table), None)
-            num_col = None
-            if table_info:
-                for c in table_info.columns:
-                    if any(k in c.name.lower() for k in ["amount", "revenue", "price", "val", "total", "cost"]):
-                        num_col = c.name
-                        break
-            if num_col:
-                return f"SELECT SUM({num_col}) AS total_sum FROM {matched_table};"
-
-        # General SELECT * intent with default ordering if timestamp column exists
-        table_info = next((t for t in schema_metadata if t.table_name == matched_table), None)
-        date_col = None
-        if table_info:
-            for c in table_info.columns:
-                if any(k in c.name.lower() for k in ["date", "time", "created", "timestamp"]):
-                    date_col = c.name
-                    break
-
-        if date_col:
-            return f"SELECT * FROM {matched_table} ORDER BY {date_col} DESC LIMIT 20;"
-
-        return f"SELECT * FROM {matched_table} LIMIT 20;"
-
-    def process_query(self, query: str) -> SQLGenerationResult:
-        """
-        Generates SQL, validates safety, executes query, and performs auto-repair if needed.
-        """
-        schema_summary = self.db.get_schema_summary_str()
-        generated_sql = self.generate_sql_heuristic(query, schema_summary)
-
-        # Validate SQL Safety via Guardrail
-        is_safe, _, sanitized_sql, safety_details = self.sql_guard.evaluate_sql(generated_sql)
-        if not is_safe:
-            return SQLGenerationResult(
-                success=False,
+        if not val_result.is_valid:
+            return StructuredSQLResult(
+                natural_query=query,
                 generated_sql=generated_sql,
-                sanitized_sql="",
-                explanation=f"SQL safety violation: {safety_details}",
-                error_message=safety_details
+                columns=["error"],
+                rows=[[val_result.error_message]],
+                row_count=0,
+                summary_text=f"SQL Validation Failed: {val_result.error_message}"
             )
 
-        # Execute safe SQL
-        success, rows, cols, exec_details = self.db.execute_read_query(sanitized_sql)
+        # 3. Read-Only Execution Engine
+        t_exec_start = time.time()
+        columns, rows = self.execution_engine.execute_read_only_query(
+            sql=val_result.sanitized_sql,
+            params=params
+        )
+        t_exec_end = time.time()
 
-        # Attempt Automated Query Repair if query failed
-        repair_attempted = False
-        if not success:
-            repair_attempted = True
-            # Simple fallback repair: select top 10 from primary table
-            schema_meta = self.db.get_schema_metadata()
-            if schema_meta:
-                fallback_table = schema_meta[0].table_name
-                sanitized_sql = f"SELECT * FROM {fallback_table} LIMIT 10;"
-                success, rows, cols, exec_details = self.db.execute_read_query(sanitized_sql)
-
-        explanation = (
-            f"Generated and executed query on database. {exec_details}"
+        # 4. Result Formatting & Packaging
+        t_fmt_start = time.time()
+        metrics = SQLExecutionMetrics(
+            generation_latency_ms=round((t_gen_end - t_gen_start) * 1000.0, 2),
+            validation_latency_ms=round((t_val_end - t_val_start) * 1000.0, 2),
+            execution_latency_ms=round((t_exec_end - t_exec_start) * 1000.0, 2),
+            total_latency_ms=round((time.time() - t0) * 1000.0, 2)
         )
 
-        return SQLGenerationResult(
-            success=success,
-            generated_sql=generated_sql,
-            sanitized_sql=sanitized_sql,
+        result = self.interpreter.format_results(
+            query=query,
+            sql=val_result.sanitized_sql,
+            columns=columns,
             rows=rows,
-            columns=cols,
-            row_count=len(rows),
-            explanation=explanation,
-            error_message=None if success else exec_details,
-            repair_attempted=repair_attempted
+            metrics=metrics
         )
+        t_fmt_end = time.time()
+        result.metrics.formatting_latency_ms = round((t_fmt_end - t_fmt_start) * 1000.0, 2)
+
+        return result
