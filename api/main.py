@@ -1,6 +1,6 @@
 """
 RAGTUNE - Enterprise API Gateway & REST Server
-Exposes enterprise endpoints for intelligence queries, ingestion, HITL hub, and XAI tracing.
+Exposes enterprise endpoints for intelligence queries, IAM, ingestion, HITL hub, and XAI tracing.
 """
 
 import time
@@ -30,6 +30,7 @@ from api.schemas import (
     IngestTextRequest, IngestResponse,
     HITLActionRequest, HITLActionResponse
 )
+from auth.api.routes import router as auth_router
 
 # Initialize Core Services
 db_connector = DBConnector()
@@ -55,7 +56,7 @@ orchestrator = AgentOrchestrator(
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.VERSION,
-    description="Enterprise Knowledge Intelligence Platform combining RAG, Text-to-SQL, 9-Layer Guardrails, and Explainable AI."
+    description="Enterprise Knowledge Intelligence Platform combining Identity & Access Management, RAG, Text-to-SQL, 9-Layer Guardrails, and Explainable AI."
 )
 
 # Enable CORS for modern web clients
@@ -66,6 +67,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount Identity & Access Management Router
+app.include_router(auth_router)
 
 
 @app.on_event("startup")
