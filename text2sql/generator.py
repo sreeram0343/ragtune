@@ -4,7 +4,7 @@ Synthesizes structured read-only SELECT queries with aggregations, CTEs, and par
 """
 
 import re
-from typing import List, Tuple
+from typing import List, Tuple, Any
 from text2sql.domain import TableSchema
 
 

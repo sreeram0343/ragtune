@@ -2,11 +2,17 @@ from .framework.stage import (
     BaseSecurityStage, StageResult, SecurityRequestContainer,
     EnrichedSecurityRequest, TrustLevel, SecurityViolationException
 )
-from .framework.pipeline import InputSecurityPipeline
-from .middleware import InputSecurityMiddleware
+
+def get_input_security_pipeline_class():
+    from .framework.pipeline import InputSecurityPipeline
+    return InputSecurityPipeline
+
+def get_input_security_middleware_class():
+    from .middleware import InputSecurityMiddleware
+    return InputSecurityMiddleware
 
 __all__ = [
     "BaseSecurityStage", "StageResult", "SecurityRequestContainer",
     "EnrichedSecurityRequest", "TrustLevel", "SecurityViolationException",
-    "InputSecurityPipeline", "InputSecurityMiddleware"
+    "get_input_security_pipeline_class", "get_input_security_middleware_class"
 ]

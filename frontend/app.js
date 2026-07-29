@@ -1,119 +1,269 @@
-// RAGTUNE Enterprise Web Dashboard Application Logic
+// ==========================================================================
+// RAGTUNE Enterprise AI Operating System - Application Engine
+// Inspired by Apple, Linear, Vercel & OpenAI Enterprise
+// ==========================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
     initNavigation();
-    initQueryForm();
+    initCommandPalette();
+    initChatWorkspace();
+    initSQLAnalyst();
     loadHITLQueue();
     loadSchemaCatalog();
+    checkHealthStatus();
 });
 
-// Navigation Handling
+// Toast Notification Helper
+window.showToast = function(message, type = 'info', duration = 3500) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+
+    let iconSvg = '';
+    if (type === 'success') {
+        iconSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+    } else if (type === 'error' || type === 'danger') {
+        iconSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+    } else {
+        iconSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="3"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
+    }
+
+    toast.innerHTML = `
+        ${iconSvg}
+        <div style="flex:1;">${escapeHtml(message)}</div>
+    `;
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(8px)';
+        setTimeout(() => toast.remove(), 250);
+    }, duration);
+};
+
+// Pane Switcher & Navigation
 function initNavigation() {
-    const navButtons = document.querySelectorAll('.nav-btn');
-    const tabPanes = document.querySelectorAll('.tab-pane');
+    const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
 
-    navButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const targetTab = btn.getAttribute('data-tab');
-
-            navButtons.forEach(b => b.classList.remove('active'));
-            tabPanes.forEach(p => p.classList.remove('active'));
-
-            btn.classList.add('active');
-            const targetPane = document.getElementById(`tab-${targetTab}`);
-            if (targetPane) targetPane.classList.add('active');
-
-            if (targetTab === 'hitl') loadHITLQueue();
-            if (targetTab === 'schema') loadSchemaCatalog();
+    navItems.forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.preventDefault();
+            const paneId = item.getAttribute('data-pane');
+            if (paneId) switchPane(paneId);
         });
     });
 }
 
-// Global Preset Setter
-window.setPresetQuery = function(queryText) {
-    const input = document.getElementById('query-input');
+window.switchPane = function(paneId) {
+    const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
+    const panes = document.querySelectorAll('.workspace-pane');
+
+    navItems.forEach(item => {
+        if (item.getAttribute('data-pane') === paneId) {
+            item.classList.add('active');
+        } else {
+            item.classList.remove('active');
+        }
+    });
+
+    panes.forEach(pane => {
+        if (pane.id === `pane-${paneId}`) {
+            pane.classList.add('active');
+        } else {
+            pane.classList.remove('active');
+        }
+    });
+
+    if (paneId === 'hitl') loadHITLQueue();
+    if (paneId === 'sql-analyst') loadSchemaCatalog();
+
+    closeCommandPalette();
+};
+
+// ⌘K Command Palette Overlay Logic
+function initCommandPalette() {
+    const modal = document.getElementById('cmd-modal-overlay');
+    const input = document.getElementById('cmd-input');
+
+    document.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+            e.preventDefault();
+            toggleCommandPalette();
+        }
+        if (e.key === 'Escape' && modal.classList.contains('open')) {
+            closeCommandPalette();
+        }
+    });
+
     if (input) {
-        input.value = queryText;
-        input.focus();
+        input.addEventListener('input', () => {
+            const query = input.value.toLowerCase().trim();
+            const items = document.querySelectorAll('.cmd-item');
+            items.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                if (text.includes(query)) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+    }
+}
+
+window.toggleCommandPalette = function() {
+    const modal = document.getElementById('cmd-modal-overlay');
+    const input = document.getElementById('cmd-input');
+    if (modal) {
+        modal.classList.toggle('open');
+        if (modal.classList.contains('open') && input) {
+            input.value = '';
+            input.focus();
+        }
     }
 };
 
-// Query Submission Logic
-function initQueryForm() {
-    const submitBtn = document.getElementById('submit-query-btn');
-    const queryInput = document.getElementById('query-input');
+window.closeCommandPalette = function() {
+    const modal = document.getElementById('cmd-modal-overlay');
+    if (modal) modal.classList.remove('open');
+};
 
-    if (submitBtn && queryInput) {
-        submitBtn.addEventListener('click', async () => {
-            const query = queryInput.value.trim();
-            if (!query) return;
+// AI Chat Workspace Logic
+function initChatWorkspace() {
+    const sendBtn = document.getElementById('send-query-btn');
+    const input = document.getElementById('chat-prompt-input');
 
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = `
-                <svg class="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"></path></svg>
-                Processing Reasoning Engine...
-            `;
-
-            try {
-                const response = await fetch('/api/v1/query', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        query: query,
-                        role: 'ANALYST',
-                        tenant_id: 'tenant_enterprise_default'
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Server returned status ${response.status}`);
-                }
-
-                const data = await response.json();
-                renderQueryResults(data);
-            } catch (err) {
-                alert(`Error executing query: ${err.message}`);
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = `
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-                    Execute Reasoning Engine
-                `;
+    if (sendBtn && input) {
+        sendBtn.addEventListener('click', () => submitChatQuery());
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                submitChatQuery();
             }
         });
     }
 }
 
-// Render Results Output
-function renderQueryResults(data) {
-    // 1. Show Telemetry Banner
-    const banner = document.getElementById('results-banner');
-    if (banner) {
-        banner.classList.remove('hidden');
-        document.getElementById('res-intent').textContent = data.intent_route;
-        document.getElementById('res-confidence').textContent = `${(data.overall_confidence * 100).toFixed(1)}%`;
-        document.getElementById('res-latency').textContent = `${data.execution_time_ms} ms`;
-        document.getElementById('res-cache').textContent = data.cache_hit ? 'HIT (0ms)' : 'MISS (Fresh)';
-        document.getElementById('res-trace').textContent = data.trace_id || '--';
+window.sendPresetQuery = function(presetText) {
+    const input = document.getElementById('chat-prompt-input');
+    if (input) {
+        input.value = presetText;
+        submitChatQuery();
     }
+};
 
-    // 2. Render Narrative Output
-    const narrativeOut = document.getElementById('narrative-output');
-    if (narrativeOut) {
-        narrativeOut.innerHTML = formatMarkdown(data.response);
+async function submitChatQuery() {
+    const input = document.getElementById('chat-prompt-input');
+    const history = document.getElementById('chat-history');
+    const sendBtn = document.getElementById('send-query-btn');
+    const modelSelect = document.getElementById('chat-model-select');
+
+    if (!input || !history) return;
+    const query = input.value.trim();
+    if (!query) return;
+
+    // Append User Message
+    const userMsg = document.createElement('div');
+    userMsg.className = 'chat-msg';
+    userMsg.innerHTML = `
+        <div class="chat-avatar user">U</div>
+        <div class="chat-bubble">
+            <strong>${escapeHtml(query)}</strong>
+        </div>
+    `;
+    history.appendChild(userMsg);
+
+    input.value = '';
+    sendBtn.disabled = true;
+    sendBtn.innerHTML = `Running Engine...`;
+    history.scrollTop = history.scrollHeight;
+
+    // AI Response Placeholder
+    const aiMsg = document.createElement('div');
+    aiMsg.className = 'chat-msg';
+    aiMsg.innerHTML = `
+        <div class="chat-avatar">AI</div>
+        <div class="chat-bubble">
+            <div class="loading-state" style="color:var(--text-muted);">Reasoning through pipeline...</div>
+        </div>
+    `;
+    history.appendChild(aiMsg);
+    history.scrollTop = history.scrollHeight;
+
+    try {
+        const res = await fetch('/api/v1/query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                query: query,
+                role: 'ANALYST',
+                tenant_id: 'tenant_enterprise_default'
+            })
+        });
+
+        if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+        const data = await res.json();
+
+        // Render AI Answer
+        const bubble = aiMsg.querySelector('.chat-bubble');
+        let sqlBadge = data.generated_sql ? `<div style="font-family:var(--font-mono); font-size:0.8rem; background:var(--bg-muted); padding:0.5rem; border-radius:var(--radius-sm); margin:0.5rem 0; border:1px solid var(--border);">${escapeHtml(data.generated_sql)}</div>` : '';
+
+        bubble.innerHTML = `
+            <div>${formatMarkdown(data.response)}</div>
+            ${sqlBadge}
+            <div class="chat-meta-bar">
+                <span class="badge-mono badge-success">${data.intent_route}</span>
+                <span class="badge-mono">Confidence: ${(data.overall_confidence * 100).toFixed(1)}%</span>
+                <span class="badge-mono">Latency: ${data.execution_time_ms} ms</span>
+                <button class="btn btn-outline btn-sm" onclick="inspectXAITrace('${data.trace_id}')">Inspect XAI Trace</button>
+            </div>
+        `;
+
+        if (data.hitl_flagged) {
+            showToast(`Flagged for HITL review (Ticket: ${data.hitl_ticket_id})`, 'warning', 5000);
+            loadHITLQueue();
+        } else {
+            showToast('Query executed successfully', 'success');
+        }
+    } catch (err) {
+        const bubble = aiMsg.querySelector('.chat-bubble');
+        bubble.innerHTML = `<span style="color:var(--danger);">Error: ${escapeHtml(err.message)}</span>`;
+        showToast(`Execution failed: ${err.message}`, 'danger');
+    } finally {
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            Run Query
+        `;
+        history.scrollTop = history.scrollHeight;
     }
+}
 
-    // 3. Render SQL Results (if available)
-    const sqlCard = document.getElementById('sql-results-card');
-    if (data.generated_sql && sqlCard) {
-        sqlCard.classList.remove('hidden');
-        document.getElementById('sql-statement-view').textContent = data.generated_sql;
-        document.getElementById('sql-rows-count').textContent = `${data.sql_rows.length} rows`;
+// SQL Analyst Logic
+function initSQLAnalyst() {}
 
-        const headersRow = document.getElementById('sql-table-headers');
-        const tableBody = document.getElementById('sql-table-body');
+window.executeSQLQuery = async function() {
+    const input = document.getElementById('sql-analyst-input');
+    if (!input) return;
+    const query = input.value.trim();
+    if (!query) return;
+
+    try {
+        const res = await fetch('/api/v1/query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: query, role: 'ANALYST', tenant_id: 'tenant_enterprise_default' })
+        });
+        const data = await res.json();
+        document.getElementById('sql-compiled-code').textContent = data.generated_sql || query;
+
+        const headersRow = document.getElementById('sql-results-headers');
+        const bodyRows = document.getElementById('sql-results-rows');
         headersRow.innerHTML = '';
-        tableBody.innerHTML = '';
+        bodyRows.innerHTML = '';
 
         if (data.sql_columns && data.sql_columns.length > 0) {
             data.sql_columns.forEach(col => {
@@ -129,133 +279,86 @@ function renderQueryResults(data) {
                     td.textContent = row[col] !== undefined ? row[col] : '';
                     tr.appendChild(td);
                 });
-                tableBody.appendChild(tr);
+                bodyRows.appendChild(tr);
             });
         }
-    } else if (sqlCard) {
-        sqlCard.classList.add('hidden');
+        showToast('SQL Execution complete', 'success');
+    } catch (e) {
+        showToast('SQL Execution failed', 'danger');
     }
+};
 
-    // 4. Render RAG Evidence Chunks
-    const ragCard = document.getElementById('rag-evidence-card');
-    const chunksList = document.getElementById('evidence-chunks-list');
-    if (data.retrieved_chunks && data.retrieved_chunks.length > 0 && ragCard && chunksList) {
-        ragCard.classList.remove('hidden');
-        document.getElementById('rag-chunks-count').textContent = `${data.retrieved_chunks.length} chunks`;
-        chunksList.innerHTML = '';
-
-        data.retrieved_chunks.forEach(chunk => {
-            const div = document.createElement('div');
-            div.className = 'chunk-item';
-            div.innerHTML = `
-                <div class="chunk-header">
-                    <span>${escapeHtml(chunk.title || 'Document')}</span>
-                    <span class="badge">Relevance: ${((chunk.rerank_score || chunk.rrf_score || 0) * 100).toFixed(1)}%</span>
-                </div>
-                <div style="color: #94a3b8;">${escapeHtml(chunk.content || '')}</div>
-            `;
-            chunksList.appendChild(div);
-        });
-    } else if (ragCard) {
-        ragCard.classList.add('hidden');
-    }
-
-    // 5. Update Guardrail Matrix Badges
-    if (data.guardrail_matrix && data.guardrail_matrix.length > 0) {
-        data.guardrail_matrix.forEach(layer => {
-            const card = document.querySelector(`.layer-card[data-layer="${layer.layer_num}"]`);
-            if (card) {
-                const pill = card.querySelector('.status-pill');
-                if (pill) {
-                    if (layer.passed) {
-                        pill.className = 'status-pill pass';
-                        pill.textContent = 'PASS';
-                    } else {
-                        pill.className = 'status-pill fail';
-                        pill.textContent = 'FAIL';
-                    }
-                }
-            }
-        });
-    }
-
-    // 6. Fetch and Render XAI Timeline
-    if (data.trace_id) {
-        fetchXAITrace(data.trace_id);
-    }
-}
-
-// Fetch XAI Execution Graph Trace
-async function fetchXAITrace(traceId) {
-    const timeline = document.getElementById('xai-timeline');
-    if (!timeline) return;
+// Inspect XAI Trace in Context Drawer
+window.inspectXAITrace = async function(traceId) {
+    const drawer = document.getElementById('drawer-content');
+    if (!drawer || !traceId) return;
 
     try {
         const res = await fetch(`/api/v1/xai/${traceId}`);
         if (!res.ok) return;
         const trace = await res.json();
 
-        timeline.innerHTML = '';
-        trace.execution_steps.forEach(step => {
-            const stepDiv = document.createElement('div');
-            stepDiv.className = 'timeline-step';
-            stepDiv.innerHTML = `
-                <div style="flex:1;">
-                    <div style="display:flex; justify-content:space-between;">
-                        <span class="step-node">${escapeHtml(step.agent_node)}</span>
-                        <span class="step-time">${step.latency_ms} ms</span>
+        drawer.innerHTML = `
+            <h4 style="font-size:0.85rem; font-weight:700; margin-bottom:0.5rem;">Trace ID: ${trace.trace_id}</h4>
+            <div style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:1rem;">Query: "${escapeHtml(trace.user_query)}"</div>
+            <div style="display:flex; flex-direction:column; gap:0.6rem;">
+                ${trace.execution_steps.map(step => `
+                    <div class="card-flat" style="padding:0.65rem;">
+                        <div style="display:flex; justify-content:space-between; font-weight:600; font-size:0.8rem;">
+                            <span>${escapeHtml(step.agent_node)}</span>
+                            <span style="color:var(--text-muted); font-size:0.7rem;">${step.latency_ms} ms</span>
+                        </div>
+                        <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:0.25rem;">${escapeHtml(step.action_taken)}</div>
                     </div>
-                    <div style="color: #cbd5e1; margin-top:0.2rem;">${escapeHtml(step.action_taken)}</div>
-                </div>
-            `;
-            timeline.appendChild(stepDiv);
-        });
+                `).join('')}
+            </div>
+        `;
     } catch (e) {
-        console.error('Failed to load XAI trace', e);
+        console.error(e);
     }
-}
+};
 
-// Load HITL Queue Tickets
+// HITL Queue Handling
 window.loadHITLQueue = async function() {
-    const queueContainer = document.getElementById('hitl-queue-container');
-    const badgeCount = document.getElementById('hitl-badge-count');
-    if (!queueContainer) return;
+    const queueList = document.getElementById('hitl-queue-list');
+    const badge = document.getElementById('sidebar-hitl-badge');
+    if (!queueList) return;
 
     try {
         const res = await fetch('/api/v1/hitl/queue');
         const data = await res.json();
 
-        if (badgeCount) badgeCount.textContent = data.pending_count || 0;
+        if (badge) badge.textContent = data.pending_count || 0;
 
         if (!data.tickets || data.tickets.length === 0) {
-            queueContainer.innerHTML = '<div class="empty-state">No pending tickets requiring Human-in-the-Loop approval.</div>';
+            queueList.innerHTML = `<div class="card-flat" style="text-align:center; color:var(--text-muted); padding:2rem;">No pending tickets requiring Human-in-the-Loop approval.</div>`;
             return;
         }
 
-        queueContainer.innerHTML = '';
+        queueList.innerHTML = '';
         data.tickets.forEach(ticket => {
             const card = document.createElement('div');
-            card.className = 'ticket-card';
+            card.className = 'card-flat';
+            card.style.borderLeft = '4px solid var(--warning)';
             card.innerHTML = `
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <strong style="color: var(--warning);">Ticket ID: ${ticket.ticket_id}</strong>
-                    <span class="badge">User: ${ticket.user_id}</span>
+                    <strong>Ticket ID: ${ticket.ticket_id}</strong>
+                    <span class="badge-mono badge-warning">User: ${ticket.user_id}</span>
                 </div>
-                <div style="margin: 0.5rem 0; font-size: 0.9rem;"><strong>Original Query:</strong> "${escapeHtml(ticket.original_query)}"</div>
-                <div style="color: #f87171; font-size: 0.85rem;"><strong>Flag Reason:</strong> ${escapeHtml(ticket.reason)}</div>
-                <div class="ticket-actions">
-                    <button class="btn-success" onclick="resolveTicket('${ticket.ticket_id}', 'APPROVE')">Approve Query</button>
-                    <button class="btn-danger" onclick="resolveTicket('${ticket.ticket_id}', 'REJECT')">Reject Query</button>
+                <div style="margin:0.5rem 0; font-size:0.85rem;"><strong>Original Query:</strong> "${escapeHtml(ticket.original_query)}"</div>
+                <div style="color:var(--danger); font-size:0.8rem; margin-bottom:0.75rem;"><strong>Reason:</strong> ${escapeHtml(ticket.reason)}</div>
+                <div style="display:flex; gap:0.5rem;">
+                    <button class="btn btn-black btn-sm" onclick="resolveTicket('${ticket.ticket_id}', 'APPROVE')">Approve Query</button>
+                    <button class="btn btn-outline btn-sm" onclick="resolveTicket('${ticket.ticket_id}', 'REJECT')">Reject Query</button>
                 </div>
             `;
-            queueContainer.appendChild(card);
+            queueList.appendChild(card);
         });
     } catch (e) {
-        console.error('Failed to load HITL queue', e);
+        console.error(e);
     }
 };
 
-// Resolve HITL Ticket Action
 window.resolveTicket = async function(ticketId, action) {
     try {
         const res = await fetch('/api/v1/hitl/action', {
@@ -270,54 +373,76 @@ window.resolveTicket = async function(ticketId, action) {
         });
 
         if (res.ok) {
-            alert(`Ticket ${ticketId} resolved as ${action}`);
+            showToast(`Ticket ${ticketId} resolved as ${action}`, 'success');
             loadHITLQueue();
         } else {
-            alert('Failed to resolve ticket');
+            showToast('Failed to resolve ticket', 'danger');
         }
     } catch (e) {
-        alert('Error resolving ticket');
+        showToast('Error resolving ticket', 'danger');
     }
 };
 
-// Load Database Schema Catalog
+// Schema Catalog Loading
 async function loadSchemaCatalog() {
-    const container = document.getElementById('schema-catalog-container');
+    const container = document.getElementById('sql-schema-list');
     if (!container) return;
 
     try {
         const res = await fetch('/api/v1/schema');
         const data = await res.json();
-
-        if (!data.schema || data.schema.length === 0) {
-            container.innerHTML = '<div class="empty-state">No tables found in database.</div>';
-            return;
-        }
+        if (!data.schema || data.schema.length === 0) return;
 
         container.innerHTML = '';
-        data.schema.forEach(table => {
-            const card = document.createElement('div');
-            card.className = 'table-schema-card';
-
-            const colsHtml = table.columns.map(c => 
-                `<li style="margin-bottom:0.25rem;"><code>${c.name}</code> <span style="color: #64748b;">(${c.type})</span> ${c.primary_key ? '<span class="badge" style="color:#818cf8;">PK</span>' : ''}</li>`
-            ).join('');
-
-            card.innerHTML = `
-                <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
-                    <h3 style="color:#a5b4fc;">${escapeHtml(table.table_name)}</h3>
-                    <span class="badge">${table.row_count} rows</span>
-                </div>
-                <ul style="list-style:none; font-size:0.85rem;">${colsHtml}</ul>
+        data.schema.forEach(tbl => {
+            const div = document.createElement('div');
+            div.style.borderBottom = '1px solid var(--border)';
+            div.style.paddingBottom = '0.5rem';
+            div.innerHTML = `
+                <div style="font-weight:600; font-size:0.8rem;">${escapeHtml(tbl.table_name)}</div>
+                <div style="font-size:0.725rem; color:var(--text-muted);">${tbl.columns.length} columns • ${tbl.row_count} rows</div>
             `;
-            container.appendChild(card);
+            container.appendChild(div);
         });
     } catch (e) {
-        console.error('Failed to load schema catalog', e);
+        console.error(e);
     }
 }
 
-// Helpers
+// Health Telemetry Check
+async function checkHealthStatus() {
+    try {
+        const res = await fetch('/health');
+        if (res.ok) {
+            const text = document.getElementById('header-status-text');
+            if (text) text.textContent = 'Engine Online';
+        }
+    } catch (e) {}
+}
+
+// Document Upload Simulation Trigger
+window.triggerFileUpload = function() {
+    const sampleText = "Acme Enterprise Master Service Agreement SLA Uptime Commitment is 99.99% for Severity 1 outages.";
+    fetch('/api/v1/ingest/text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            text: sampleText,
+            title: "acme_sla_master_agreement.md",
+            doc_id: `doc_${Date.now()}`
+        })
+    }).then(res => res.json()).then(data => {
+        showToast(data.message || 'Document ingested successfully', 'success');
+    }).catch(() => showToast('Failed to ingest document', 'danger'));
+};
+
+window.inspectNode = function(nodeName) {
+    showToast(`Inspecting ${nodeName} execution node`, 'info');
+};
+
+window.toggleRightDrawer = function() {};
+
+// Utility Helpers
 function escapeHtml(str) {
     return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
@@ -326,6 +451,6 @@ function formatMarkdown(text) {
     if (!text) return '';
     let formatted = escapeHtml(text);
     formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    formatted = formatted.replace(/`([^`]+)`/g, '<code class="font-mono" style="background:rgba(255,255,255,0.08); padding:0.1rem 0.3rem; border-radius:4px;">$1</code>');
+    formatted = formatted.replace(/`([^`]+)`/g, '<code class="font-mono" style="background:var(--bg-muted); padding:0.1rem 0.3rem; border-radius:4px; border:1px solid var(--border);">$1</code>');
     return formatted;
 }

@@ -8,7 +8,7 @@ import base64
 import hmac
 import hashlib
 import time
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple
 from config.settings import settings
 
 
