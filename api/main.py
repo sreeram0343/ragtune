@@ -228,6 +228,14 @@ def get_cache_stats():
 if os.path.exists("frontend"):
     app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
+    @app.get("/style.css", include_in_schema=False)
+    def serve_css():
+        return FileResponse(os.path.join("frontend", "style.css"))
+
+    @app.get("/app.js", include_in_schema=False)
+    def serve_js():
+        return FileResponse(os.path.join("frontend", "app.js"))
+
     @app.get("/", response_class=HTMLResponse, include_in_schema=False)
     def serve_frontend():
         index_path = os.path.join("frontend", "index.html")

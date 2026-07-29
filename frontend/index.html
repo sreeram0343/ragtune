@@ -8,6 +8,856 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+/* ==========================================================================
+   RAGTUNE Enterprise AI Operating System - Design System
+   Inspired by Apple, Linear, Vercel, Notion, Stripe & OpenAI Enterprise
+   ========================================================================== */
+
+:root {
+    --bg-app: #ffffff;
+    --bg-subtle: #fafafa;
+    --bg-muted: #f4f4f5;
+    
+    --surface: #ffffff;
+    --surface-hover: #fafafa;
+    --surface-active: #f4f4f5;
+    
+    --border: #ececec;
+    --border-hover: #d4d4d8;
+    --border-strong: #111111;
+    
+    --text-primary: #111111;
+    --text-secondary: #52525b;
+    --text-muted: #9ca3af;
+    --text-inverse: #ffffff;
+    
+    --accent: #111111;
+    --accent-hover: #27272a;
+    --accent-light: #f4f4f5;
+    
+    --success: #22c55e;
+    --success-subtle: #f0fdf4;
+    --success-border: #bbf7d0;
+    
+    --warning: #f59e0b;
+    --warning-subtle: #fffbeb;
+    --warning-border: #fde68a;
+    
+    --danger: #ef4444;
+    --danger-subtle: #fef2f2;
+    --danger-border: #fecaca;
+    
+    --info: #2563eb;
+    --info-subtle: #eff6ff;
+    --info-border: #bfdbfe;
+    
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'Fira Code', 'Geist Mono', SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-full: 9999px;
+    
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.06), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    --shadow-lg: 0 12px 32px -4px rgba(0, 0, 0, 0.08), 0 4px 8px -2px rgba(0, 0, 0, 0.04);
+    --shadow-modal: 0 20px 50px -10px rgba(0, 0, 0, 0.15);
+    
+    --transition-fast: 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    --transition-normal: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html, body {
+    height: 100%;
+    background-color: var(--bg-subtle);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.4;
+    letter-spacing: -0.011em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+button, input, select, textarea {
+    font-family: inherit;
+    font-size: inherit;
+    color: inherit;
+}
+
+.app-shell {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+    background: var(--bg-subtle);
+}
+
+.top-header {
+    height: 52px;
+    background: var(--bg-app);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1rem;
+    z-index: 40;
+    flex-shrink: 0;
+}
+
+.header-left, .header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.brand-logo {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    text-decoration: none;
+}
+
+.logo-badge {
+    font-size: 0.65rem;
+    font-weight: 600;
+    background: var(--bg-muted);
+    color: var(--text-secondary);
+    padding: 0.15rem 0.45rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.workspace-selector {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.65rem;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.workspace-selector:hover {
+    border-color: var(--border-hover);
+    background: var(--bg-app);
+}
+
+.cmd-search-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.75rem;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    width: 220px;
+    justify-content: space-between;
+    transition: var(--transition-fast);
+}
+
+.cmd-search-btn:hover {
+    border-color: var(--border-hover);
+    color: var(--text-secondary);
+    background: var(--bg-app);
+}
+
+.kbd-shortcut {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    background: var(--bg-app);
+    border: 1px solid var(--border);
+    padding: 0.1rem 0.35rem;
+    border-radius: 4px;
+    color: var(--text-secondary);
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--success);
+}
+
+.user-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.55rem;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.app-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+}
+
+.left-sidebar {
+    width: 240px;
+    background: var(--bg-app);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    user-select: none;
+    z-index: 20;
+}
+
+.sidebar-nav {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.nav-section-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    padding: 0 0.5rem 0.35rem 0.5rem;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    padding: 0.45rem 0.6rem;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-weight: 500;
+    font-size: 0.85rem;
+    cursor: pointer;
+    text-decoration: none;
+    transition: var(--transition-fast);
+    border: 1px solid transparent;
+}
+
+.nav-item:hover {
+    color: var(--text-primary);
+    background: var(--bg-subtle);
+}
+
+.nav-item.active {
+    color: var(--text-primary);
+    background: var(--bg-muted);
+    font-weight: 600;
+}
+
+.nav-item-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    color: var(--text-secondary);
+}
+
+.nav-item.active .nav-item-icon {
+    color: var(--text-primary);
+}
+
+.main-workspace {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg-app);
+    position: relative;
+}
+
+.workspace-pane {
+    display: none;
+    flex: 1;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 1.75rem 2rem;
+}
+
+.workspace-pane.active {
+    display: flex;
+    animation: paneIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes paneIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.pane-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.pane-title-group h1 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+}
+
+.pane-title-group p {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 0.2rem;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    padding: 0.45rem 0.9rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.825rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition-fast);
+    border: 1px solid transparent;
+    white-space: nowrap;
+    text-decoration: none;
+}
+
+.btn-black {
+    background: var(--accent);
+    color: var(--text-inverse);
+    border-color: var(--accent);
+}
+
+.btn-black:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
+.btn-outline {
+    background: var(--bg-app);
+    color: var(--text-primary);
+    border-color: var(--border);
+}
+
+.btn-outline:hover {
+    border-color: var(--border-hover);
+    background: var(--bg-subtle);
+}
+
+.btn-ghost {
+    background: transparent;
+    color: var(--text-secondary);
+}
+
+.btn-ghost:hover {
+    color: var(--text-primary);
+    background: var(--bg-subtle);
+}
+
+.btn-sm {
+    padding: 0.3rem 0.65rem;
+    font-size: 0.775rem;
+}
+
+.card-flat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1.25rem;
+    transition: var(--transition-fast);
+}
+
+.card-flat:hover {
+    border-color: var(--border-hover);
+}
+
+.badge-mono {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.725rem;
+    font-weight: 500;
+    padding: 0.15rem 0.5rem;
+    border-radius: var(--radius-sm);
+    background: var(--bg-muted);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+}
+
+.badge-success {
+    background: var(--success-subtle);
+    color: #15803d;
+    border: 1px solid var(--success-border);
+}
+
+.badge-warning {
+    background: var(--warning-subtle);
+    color: #b45309;
+    border: 1px solid var(--warning-border);
+}
+
+.badge-danger {
+    background: var(--danger-subtle);
+    color: #b91c1c;
+    border: 1px solid var(--danger-border);
+}
+
+.input-minimal {
+    width: 100%;
+    padding: 0.55rem 0.75rem;
+    background: var(--bg-app);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    outline: none;
+    transition: var(--transition-fast);
+}
+
+.input-minimal:focus {
+    border-color: var(--text-primary);
+    box-shadow: 0 0 0 1px var(--text-primary);
+}
+
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+}
+
+.table-clean {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.825rem;
+    text-align: left;
+}
+
+.table-clean th {
+    background: var(--bg-subtle);
+    color: var(--text-secondary);
+    font-weight: 600;
+    padding: 0.65rem 0.9rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.table-clean td {
+    padding: 0.65rem 0.9rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-primary);
+}
+
+.table-clean tr:hover td {
+    background: var(--bg-subtle);
+}
+
+.chat-workspace-layout {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.chat-history-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.chat-msg {
+    display: flex;
+    gap: 1rem;
+    max-width: 100%;
+}
+
+.chat-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-sm);
+    background: var(--accent);
+    color: var(--text-inverse);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.chat-avatar.user {
+    background: var(--bg-muted);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+}
+
+.chat-bubble {
+    flex: 1;
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+.chat-meta-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.prompt-box-wrapper {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 0.75rem;
+    box-shadow: var(--shadow-md);
+    margin-top: 1rem;
+    transition: var(--transition-fast);
+}
+
+.prompt-box-wrapper:focus-within {
+    border-color: var(--text-primary);
+}
+
+.prompt-textarea {
+    width: 100%;
+    border: none;
+    outline: none;
+    resize: none;
+    background: transparent;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--text-primary);
+    max-height: 140px;
+}
+
+.prompt-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border);
+}
+
+.preset-chip-group {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.75rem;
+}
+
+.chip-btn {
+    background: var(--bg-app);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.chip-btn:hover {
+    border-color: var(--border-hover);
+    color: var(--text-primary);
+    background: var(--bg-subtle);
+}
+
+.sql-workspace-grid {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 1.5rem;
+    flex: 1;
+}
+
+.schema-sidebar-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    overflow-y: auto;
+}
+
+.sql-code-editor {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    background: #09090b;
+    color: #f4f4f5;
+    padding: 1rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-strong);
+    overflow-x: auto;
+    line-height: 1.5;
+    margin: 1rem 0;
+}
+
+.workflow-graph-canvas {
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+    min-height: 480px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.25rem;
+    overflow-x: auto;
+    position: relative;
+}
+
+.node-card {
+    width: 200px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.node-card:hover {
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-md);
+}
+
+.node-card.active-node {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent);
+}
+
+.node-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: 600;
+    font-size: 0.8rem;
+    margin-bottom: 0.4rem;
+}
+
+.node-desc {
+    font-size: 0.725rem;
+    color: var(--text-secondary);
+}
+
+.node-connector {
+    width: 24px;
+    height: 2px;
+    background: var(--border-hover);
+    flex-shrink: 0;
+}
+
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1rem 1.25rem;
+}
+
+.kpi-title {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.kpi-value {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-top: 0.3rem;
+    letter-spacing: -0.02em;
+}
+
+.kpi-sub {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.2rem;
+}
+
+.context-drawer {
+    width: 320px;
+    background: var(--bg-app);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    transition: var(--transition-normal);
+}
+
+.drawer-header {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.drawer-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.cmd-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 15vh;
+    z-index: 1000;
+}
+
+.cmd-modal-overlay.open {
+    display: flex;
+    animation: fadeIn 0.15s ease;
+}
+
+.cmd-modal {
+    width: 100%;
+    max-width: 580px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-modal);
+    overflow: hidden;
+}
+
+.cmd-input-wrapper {
+    display: flex;
+    align-items: center;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--border);
+    gap: 0.6rem;
+}
+
+.cmd-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 0.95rem;
+    background: transparent;
+    color: var(--text-primary);
+}
+
+.cmd-list {
+    max-height: 320px;
+    overflow-y: auto;
+    padding: 0.5rem;
+}
+
+.cmd-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 0.75rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.cmd-item:hover, .cmd-item.selected {
+    background: var(--bg-muted);
+    color: var(--text-primary);
+}
+
+.toast-container {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    pointer-events: none;
+}
+
+.toast {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.75rem 1rem;
+    background: var(--accent);
+    color: var(--text-inverse);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    font-size: 0.825rem;
+    font-weight: 500;
+    animation: toastIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes toastIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+    </style>
 </head>
 <body>
     <div id="app" class="app-shell">
@@ -542,5 +1392,448 @@
     <div id="toast-container" class="toast-container"></div>
 
     <script src="/static/app.js"></script>
+    <script>
+// ==========================================================================
+// RAGTUNE Enterprise AI Operating System - Application Engine
+// Inspired by Apple, Linear, Vercel & OpenAI Enterprise
+// ==========================================================================
+
+document.addEventListener('DOMContentLoaded', () => {
+    initNavigation();
+    initCommandPalette();
+    initChatWorkspace();
+    initSQLAnalyst();
+    loadHITLQueue();
+    loadSchemaCatalog();
+    checkHealthStatus();
+});
+
+window.showToast = function(message, type = 'info', duration = 3500) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+
+    let iconSvg = '';
+    if (type === 'success') {
+        iconSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+    } else if (type === 'error' || type === 'danger') {
+        iconSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+    } else {
+        iconSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="3"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
+    }
+
+    toast.innerHTML = `
+        ${iconSvg}
+        <div style="flex:1;">${escapeHtml(message)}</div>
+    `;
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(8px)';
+        setTimeout(() => toast.remove(), 250);
+    }, duration);
+};
+
+function initNavigation() {
+    const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
+
+    navItems.forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.preventDefault();
+            const paneId = item.getAttribute('data-pane');
+            if (paneId) switchPane(paneId);
+        });
+    });
+}
+
+window.switchPane = function(paneId) {
+    const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
+    const panes = document.querySelectorAll('.workspace-pane');
+
+    navItems.forEach(item => {
+        if (item.getAttribute('data-pane') === paneId) {
+            item.classList.add('active');
+        } else {
+            item.classList.remove('active');
+        }
+    });
+
+    panes.forEach(pane => {
+        if (pane.id === `pane-${paneId}`) {
+            pane.classList.add('active');
+        } else {
+            pane.classList.remove('active');
+        }
+    });
+
+    if (paneId === 'hitl') loadHITLQueue();
+    if (paneId === 'sql-analyst') loadSchemaCatalog();
+
+    closeCommandPalette();
+};
+
+function initCommandPalette() {
+    const modal = document.getElementById('cmd-modal-overlay');
+    const input = document.getElementById('cmd-input');
+
+    document.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+            e.preventDefault();
+            toggleCommandPalette();
+        }
+        if (e.key === 'Escape' && modal.classList.contains('open')) {
+            closeCommandPalette();
+        }
+    });
+
+    if (input) {
+        input.addEventListener('input', () => {
+            const query = input.value.toLowerCase().trim();
+            const items = document.querySelectorAll('.cmd-item');
+            items.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                if (text.includes(query)) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+    }
+}
+
+window.toggleCommandPalette = function() {
+    const modal = document.getElementById('cmd-modal-overlay');
+    const input = document.getElementById('cmd-input');
+    if (modal) {
+        modal.classList.toggle('open');
+        if (modal.classList.contains('open') && input) {
+            input.value = '';
+            input.focus();
+        }
+    }
+};
+
+window.closeCommandPalette = function() {
+    const modal = document.getElementById('cmd-modal-overlay');
+    if (modal) modal.classList.remove('open');
+};
+
+function initChatWorkspace() {
+    const sendBtn = document.getElementById('send-query-btn');
+    const input = document.getElementById('chat-prompt-input');
+
+    if (sendBtn && input) {
+        sendBtn.addEventListener('click', () => submitChatQuery());
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                submitChatQuery();
+            }
+        });
+    }
+}
+
+window.sendPresetQuery = function(presetText) {
+    const input = document.getElementById('chat-prompt-input');
+    if (input) {
+        input.value = presetText;
+        submitChatQuery();
+    }
+};
+
+async function submitChatQuery() {
+    const input = document.getElementById('chat-prompt-input');
+    const history = document.getElementById('chat-history');
+    const sendBtn = document.getElementById('send-query-btn');
+
+    if (!input || !history) return;
+    const query = input.value.trim();
+    if (!query) return;
+
+    const userMsg = document.createElement('div');
+    userMsg.className = 'chat-msg';
+    userMsg.innerHTML = `
+        <div class="chat-avatar user">U</div>
+        <div class="chat-bubble">
+            <strong>${escapeHtml(query)}</strong>
+        </div>
+    `;
+    history.appendChild(userMsg);
+
+    input.value = '';
+    sendBtn.disabled = true;
+    sendBtn.innerHTML = `Running Engine...`;
+    history.scrollTop = history.scrollHeight;
+
+    const aiMsg = document.createElement('div');
+    aiMsg.className = 'chat-msg';
+    aiMsg.innerHTML = `
+        <div class="chat-avatar">AI</div>
+        <div class="chat-bubble">
+            <div class="loading-state" style="color:var(--text-muted);">Reasoning through pipeline...</div>
+        </div>
+    `;
+    history.appendChild(aiMsg);
+    history.scrollTop = history.scrollHeight;
+
+    try {
+        const res = await fetch('/api/v1/query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                query: query,
+                role: 'ANALYST',
+                tenant_id: 'tenant_enterprise_default'
+            })
+        });
+
+        if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+        const data = await res.json();
+
+        const bubble = aiMsg.querySelector('.chat-bubble');
+        let sqlBadge = data.generated_sql ? `<div style="font-family:var(--font-mono); font-size:0.8rem; background:var(--bg-muted); padding:0.5rem; border-radius:var(--radius-sm); margin:0.5rem 0; border:1px solid var(--border);">${escapeHtml(data.generated_sql)}</div>` : '';
+
+        bubble.innerHTML = `
+            <div>${formatMarkdown(data.response)}</div>
+            ${sqlBadge}
+            <div class="chat-meta-bar">
+                <span class="badge-mono badge-success">${data.intent_route}</span>
+                <span class="badge-mono">Confidence: ${(data.overall_confidence * 100).toFixed(1)}%</span>
+                <span class="badge-mono">Latency: ${data.execution_time_ms} ms</span>
+                <button class="btn btn-outline btn-sm" onclick="inspectXAITrace('${data.trace_id}')">Inspect XAI Trace</button>
+            </div>
+        `;
+
+        if (data.hitl_flagged) {
+            showToast(`Flagged for HITL review (Ticket: ${data.hitl_ticket_id})`, 'warning', 5000);
+            loadHITLQueue();
+        } else {
+            showToast('Query executed successfully', 'success');
+        }
+    } catch (err) {
+        const bubble = aiMsg.querySelector('.chat-bubble');
+        bubble.innerHTML = `<span style="color:var(--danger);">Error: ${escapeHtml(err.message)}</span>`;
+        showToast(`Execution failed: ${err.message}`, 'danger');
+    } finally {
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            Run Query
+        `;
+        history.scrollTop = history.scrollHeight;
+    }
+}
+
+function initSQLAnalyst() {}
+
+window.executeSQLQuery = async function() {
+    const input = document.getElementById('sql-analyst-input');
+    if (!input) return;
+    const query = input.value.trim();
+    if (!query) return;
+
+    try {
+        const res = await fetch('/api/v1/query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: query, role: 'ANALYST', tenant_id: 'tenant_enterprise_default' })
+        });
+        const data = await res.json();
+        document.getElementById('sql-compiled-code').textContent = data.generated_sql || query;
+
+        const headersRow = document.getElementById('sql-results-headers');
+        const bodyRows = document.getElementById('sql-results-rows');
+        headersRow.innerHTML = '';
+        bodyRows.innerHTML = '';
+
+        if (data.sql_columns && data.sql_columns.length > 0) {
+            data.sql_columns.forEach(col => {
+                const th = document.createElement('th');
+                th.textContent = col;
+                headersRow.appendChild(th);
+            });
+
+            data.sql_rows.forEach(row => {
+                const tr = document.createElement('tr');
+                data.sql_columns.forEach(col => {
+                    const td = document.createElement('td');
+                    td.textContent = row[col] !== undefined ? row[col] : '';
+                    tr.appendChild(td);
+                });
+                bodyRows.appendChild(tr);
+            });
+        }
+        showToast('SQL Execution complete', 'success');
+    } catch (e) {
+        showToast('SQL Execution failed', 'danger');
+    }
+};
+
+window.inspectXAITrace = async function(traceId) {
+    const drawer = document.getElementById('drawer-content');
+    if (!drawer || !traceId) return;
+
+    try {
+        const res = await fetch(`/api/v1/xai/${traceId}`);
+        if (!res.ok) return;
+        const trace = await res.json();
+
+        drawer.innerHTML = `
+            <h4 style="font-size:0.85rem; font-weight:700; margin-bottom:0.5rem;">Trace ID: ${trace.trace_id}</h4>
+            <div style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:1rem;">Query: "${escapeHtml(trace.user_query)}"</div>
+            <div style="display:flex; flex-direction:column; gap:0.6rem;">
+                ${trace.execution_steps.map(step => `
+                    <div class="card-flat" style="padding:0.65rem;">
+                        <div style="display:flex; justify-content:space-between; font-weight:600; font-size:0.8rem;">
+                            <span>${escapeHtml(step.agent_node)}</span>
+                            <span style="color:var(--text-muted); font-size:0.7rem;">${step.latency_ms} ms</span>
+                        </div>
+                        <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:0.25rem;">${escapeHtml(step.action_taken)}</div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    } catch (e) {
+        console.error(e);
+    }
+};
+
+window.loadHITLQueue = async function() {
+    const queueList = document.getElementById('hitl-queue-list');
+    const badge = document.getElementById('sidebar-hitl-badge');
+    if (!queueList) return;
+
+    try {
+        const res = await fetch('/api/v1/hitl/queue');
+        const data = await res.json();
+
+        if (badge) badge.textContent = data.pending_count || 0;
+
+        if (!data.tickets || data.tickets.length === 0) {
+            queueList.innerHTML = `<div class="card-flat" style="text-align:center; color:var(--text-muted); padding:2rem;">No pending tickets requiring Human-in-the-Loop approval.</div>`;
+            return;
+        }
+
+        queueList.innerHTML = '';
+        data.tickets.forEach(ticket => {
+            const card = document.createElement('div');
+            card.className = 'card-flat';
+            card.style.borderLeft = '4px solid var(--warning)';
+            card.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <strong>Ticket ID: ${ticket.ticket_id}</strong>
+                    <span class="badge-mono badge-warning">User: ${ticket.user_id}</span>
+                </div>
+                <div style="margin:0.5rem 0; font-size:0.85rem;"><strong>Original Query:</strong> "${escapeHtml(ticket.original_query)}"</div>
+                <div style="color:var(--danger); font-size:0.8rem; margin-bottom:0.75rem;"><strong>Reason:</strong> ${escapeHtml(ticket.reason)}</div>
+                <div style="display:flex; gap:0.5rem;">
+                    <button class="btn btn-black btn-sm" onclick="resolveTicket('${ticket.ticket_id}', 'APPROVE')">Approve Query</button>
+                    <button class="btn btn-outline btn-sm" onclick="resolveTicket('${ticket.ticket_id}', 'REJECT')">Reject Query</button>
+                </div>
+            `;
+            queueList.appendChild(card);
+        });
+    } catch (e) {
+        console.error(e);
+    }
+};
+
+window.resolveTicket = async function(ticketId, action) {
+    try {
+        const res = await fetch('/api/v1/hitl/action', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ticket_id: ticketId,
+                action: action,
+                operator_id: 'operator_admin',
+                operator_notes: `Manual operator action: ${action}`
+            })
+        });
+
+        if (res.ok) {
+            showToast(`Ticket ${ticketId} resolved as ${action}`, 'success');
+            loadHITLQueue();
+        } else {
+            showToast('Failed to resolve ticket', 'danger');
+        }
+    } catch (e) {
+        showToast('Error resolving ticket', 'danger');
+    }
+};
+
+async function loadSchemaCatalog() {
+    const container = document.getElementById('sql-schema-list');
+    if (!container) return;
+
+    try {
+        const res = await fetch('/api/v1/schema');
+        const data = await res.json();
+        if (!data.schema || data.schema.length === 0) return;
+
+        container.innerHTML = '';
+        data.schema.forEach(tbl => {
+            const div = document.createElement('div');
+            div.style.borderBottom = '1px solid var(--border)';
+            div.style.paddingBottom = '0.5rem';
+            div.innerHTML = `
+                <div style="font-weight:600; font-size:0.8rem;">${escapeHtml(tbl.table_name)}</div>
+                <div style="font-size:0.725rem; color:var(--text-muted);">${tbl.columns.length} columns • ${tbl.row_count} rows</div>
+            `;
+            container.appendChild(div);
+        });
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+async function checkHealthStatus() {
+    try {
+        const res = await fetch('/health');
+        if (res.ok) {
+            const text = document.getElementById('header-status-text');
+            if (text) text.textContent = 'Engine Online';
+        }
+    } catch (e) {}
+}
+
+window.triggerFileUpload = function() {
+    const sampleText = "Acme Enterprise Master Service Agreement SLA Uptime Commitment is 99.99% for Severity 1 outages.";
+    fetch('/api/v1/ingest/text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            text: sampleText,
+            title: "acme_sla_master_agreement.md",
+            doc_id: `doc_${Date.now()}`
+        })
+    }).then(res => res.json()).then(data => {
+        showToast(data.message || 'Document ingested successfully', 'success');
+    }).catch(() => showToast('Failed to ingest document', 'danger'));
+};
+
+window.inspectNode = function(nodeName) {
+    showToast(`Inspecting ${nodeName} execution node`, 'info');
+};
+
+window.toggleRightDrawer = function() {};
+
+function escapeHtml(str) {
+    return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function formatMarkdown(text) {
+    if (!text) return '';
+    let formatted = escapeHtml(text);
+    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    formatted = formatted.replace(/`([^`]+)`/g, '<code class="font-mono" style="background:var(--bg-muted); padding:0.1rem 0.3rem; border-radius:4px; border:1px solid var(--border);">$1</code>');
+    return formatted;
+}
+    </script>
 </body>
 </html>
