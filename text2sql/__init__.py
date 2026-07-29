@@ -4,10 +4,10 @@ from .generator import SQLGenerator
 from .validator import SQLValidator
 from .execution import SQLExecutionEngine
 from .interpreter import ResultInterpreter
-from .engine import EnterpriseText2SQLEngine
+from .engine import EnterpriseText2SQLEngine, Text2SQLEngine
 
 __all__ = [
     "ColumnSchema", "TableSchema", "SQLValidationResult", "SQLExecutionMetrics", "StructuredSQLResult",
     "SchemaIntrospector", "SQLGenerator", "SQLValidator", "SQLExecutionEngine",
-    "ResultInterpreter", "EnterpriseText2SQLEngine"
+    "ResultInterpreter", "EnterpriseText2SQLEngine", "Text2SQLEngine"
 ]

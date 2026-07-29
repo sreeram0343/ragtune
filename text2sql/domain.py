@@ -43,8 +43,14 @@ class SQLExecutionMetrics(BaseModel):
 class StructuredSQLResult(BaseModel):
     natural_query: str
     generated_sql: str
+    sanitized_sql: str = ""
     columns: List[str] = Field(default_factory=list)
     rows: List[List[Any]] = Field(default_factory=list)
     row_count: int = 0
     summary_text: str = ""
+    error_message: Optional[str] = None
     metrics: SQLExecutionMetrics = Field(default_factory=SQLExecutionMetrics)
+
+    @property
+    def success(self) -> bool:
+        return self.error_message is None
