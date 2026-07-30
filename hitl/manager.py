@@ -5,7 +5,7 @@ Maintains review queue for flagged queries, low confidence outputs, or high-risk
 
 import time
 import uuid
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from pydantic import BaseModel, Field
 
 
