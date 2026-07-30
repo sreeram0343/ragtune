@@ -89,6 +89,7 @@ def startup_event():
 
 
 @app.get("/health", tags=["Health"])
+@app.get("/api/v1/health", tags=["Health"])
 def health_check():
     """Platform health check."""
     return {
@@ -97,6 +98,27 @@ def health_check():
         "version": settings.VERSION,
         "cache_mode": cache_manager.get_stats()["mode"],
         "indexed_documents_chunks": len(vector_store.chunks)
+    }
+
+
+@app.get("/api/v1/analytics", tags=["Telemetry"])
+def get_analytics():
+    """Returns real-time platform analytics."""
+    return {
+        "status": "ACTIVE",
+        "cache_stats": cache_manager.get_stats(),
+        "vector_chunks": len(vector_store.chunks),
+        "hitl_pending": len(hitl_manager.list_pending_tickets())
+    }
+
+
+@app.get("/metrics", tags=["Telemetry"])
+def get_metrics():
+    """Returns system metrics for Prometheus scraping."""
+    return {
+        "ragtune_health_status": 1,
+        "ragtune_vector_chunks_total": len(vector_store.chunks),
+        "ragtune_hitl_pending_tickets": len(hitl_manager.list_pending_tickets())
     }
 
 
