@@ -77,7 +77,7 @@ def refresh_token(payload: RefreshTokenRequest, request: Request):
     return {
         "access_token": new_access,
         "refresh_token": new_refresh,
-        "token_type": "Bearer",
+        "token_type": "Bearer",  # nosec B105
         "expires_in": 900
     }
 

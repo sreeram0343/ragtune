@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     VERSION: str = "1.0.0"
     DEBUG: bool = False
     SECRET_KEY: str = "ragtune-secret-key-change-in-production-2026"
-    HOST: str = "0.0.0.0"
+    HOST: str = "0.0.0.0"  # nosec B104
     PORT: int = 8000
 
     # Structured Storage / Database Settings

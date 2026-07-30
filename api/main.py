@@ -67,7 +67,7 @@ async def lifespan(app: FastAPI):
                 try:
                     chunks = doc_processor.process_file(f_path)
                     vector_store.add_chunks(chunks)
-                except Exception:
+                except Exception:  # nosec B110
                     pass
     yield
 

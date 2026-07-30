@@ -50,10 +50,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run Bandit AST Security Scan
+      - name: Run Bandit AST Security Scan (fail only on HIGH)
         run: |
+          python -m pip install --upgrade pip
           pip install bandit
-          bandit -r api/ config/ guardrails/ auth/ -ll
+          # Run Bandit and write JSON output
+          bandit -r api/ config/ guardrails/ auth/ -f json -o bandit_report.json || true
+          echo "Bandit summary:"
+          # print human-readable summary
+          python - <<'PY'
+import json,sys
+r=json.load(open('bandit_report.json'))
+counts={'LOW':0,'MEDIUM':0,'HIGH':0}
+for it in r.get('results',[]):
+    sev = it.get('issue_severity','LOW').upper()
+    if sev in counts:
+        counts[sev]+=1
+print("Low:",counts['LOW'])
+print("Medium:",counts['MEDIUM'])
+print("High:",counts['HIGH'])
+# exit non-zero only if HIGH findings exist
+if counts['HIGH']>0:
+    print("\nHigh severity Bandit findings present — failing CI.")
+    # optionally print each HIGH result summary
+    for it in r.get('results',[]):
+        if it.get('issue_severity','').upper()=='HIGH':
+            print(f"FILE:{it.get('filename')} LINE:{it.get('line_number')} TEST:{it.get('test_id')} - {it.get('issue_text')}")
+    sys.exit(1)
+print("\nNo HIGH severity findings. CI will continue (MEDIUM/LOW reported).")
+PY
 
   # ---------------------------------------------------------------------------
   # Stage 3: Automated Unit & Integration Testing

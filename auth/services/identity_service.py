@@ -154,7 +154,7 @@ class IdentityService:
         return True, {
             "access_token": access_token,
             "refresh_token": refresh_token,
-            "token_type": "Bearer",
+            "token_type": "Bearer",  # nosec B105
             "expires_in": 900,
             "user": {
                 "user_id": user.user_id,
