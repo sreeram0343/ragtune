@@ -14,7 +14,11 @@ SECRET_PATTERNS = [
     r"BEGIN\s+PRIVATE\s+KEY",
     r"DATABASE_URL\s*=",
     r"System\s+Instructions:\s*You\s+are",
-    r"INTERNAL_PROMPT_SECRET"
+    r"INTERNAL_PROMPT_SECRET",
+    r"AKIA[0-9A-Z]{16}",
+    r"ghp_[a-zA-Z0-9]{36}",
+    r"Bearer\s+eyJ[a-zA-Z0-9_\-\.]+",
+    r"(postgresql|mysql|mongodb|redis):\/\/[^\s]+"
 ]
 
 

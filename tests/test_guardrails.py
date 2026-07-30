@@ -10,6 +10,7 @@ from guardrails.layers.l2_pii_masking import PIIMaskingGuard
 from guardrails.layers.l3_domain_boundary import DomainBoundaryGuard
 from guardrails.layers.l6_sql_safety import SQLSafetyGuard
 from guardrails.layers.l7_groundedness import GroundednessGuard
+from guardrails.layers.l9_data_leakage import DataLeakageGuard
 
 
 def test_l1_injection():
@@ -75,3 +76,22 @@ def test_full_pipeline_pass():
         raw_response="Our uptime commitment for Acme Enterprise under the SLA policy terms is 99.99% operational uptime."
     )
     assert post_res.all_passed
+
+
+def test_l9_data_leakage():
+    guard = DataLeakageGuard()
+    
+    # Secret leak test
+    is_clean, score, details = guard.evaluate("The database credential is DATABASE_URL=postgresql://admin:secret@localhost/db")
+    assert not is_clean
+    assert score == 0.0
+    assert "Data leakage guard triggered" in details
+
+    # AWS Key leak test
+    is_clean_aws, _, _ = guard.evaluate("AWS_ACCESS_KEY_ID = AKIAIOSFODNN7EXAMPLE")
+    assert not is_clean_aws
+
+    # Clean output test
+    is_clean_safe, score_safe, _ = guard.evaluate("Acme revenue increased by 14% in Q3.")
+    assert is_clean_safe
+    assert score_safe == 1.0
