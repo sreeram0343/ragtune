@@ -1,16 +1,87 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: ragtune-service
+  name: frontend-service
   namespace: ragtune-prod
   labels:
-    app: ragtune-api
+    app.kubernetes.io/name: ragtune
+    app.kubernetes.io/component: frontend
 spec:
   type: ClusterIP
-  ports:
-  - port: 80
-    targetPort: 8000
-    protocol: TCP
-    name: http
   selector:
-    app: ragtune-api
+    app.kubernetes.io/component: frontend
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+  namespace: ragtune-prod
+  labels:
+    app.kubernetes.io/name: ragtune
+    app.kubernetes.io/component: backend
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/component: backend
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+  namespace: ragtune-prod
+  labels:
+    app.kubernetes.io/name: ragtune
+    app.kubernetes.io/component: postgres
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/component: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qdrant-service
+  namespace: ragtune-prod
+  labels:
+    app.kubernetes.io/name: ragtune
+    app.kubernetes.io/component: qdrant
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/component: qdrant
+  ports:
+    - name: http
+      port: 6333
+      targetPort: 6333
+    - name: grpc
+      port: 6334
+      targetPort: 6334
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+  namespace: ragtune-prod
+  labels:
+    app.kubernetes.io/name: ragtune
+    app.kubernetes.io/component: redis
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/component: redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379

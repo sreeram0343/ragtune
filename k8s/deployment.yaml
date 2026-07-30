@@ -1,30 +1,11 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: ragtune-prod
-  labels:
-    environment: production
-    app.kubernetes.io/name: ragtune
----
-apiVersion: policy/v1
-kind: PodDisruptionBudget
-metadata:
-  name: ragtune-pdb
-  namespace: ragtune-prod
-spec:
-  minAvailable: 2
-  selector:
-    matchLabels:
-      app: ragtune-api
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ragtune-api
+  name: backend
   namespace: ragtune-prod
   labels:
-    app: ragtune-api
-    tier: api
+    app.kubernetes.io/name: ragtune
+    app.kubernetes.io/component: backend
 spec:
   replicas: 3
   strategy:
@@ -34,61 +15,60 @@ spec:
       maxUnavailable: 0
   selector:
     matchLabels:
-      app: ragtune-api
+      app.kubernetes.io/component: backend
   template:
     metadata:
       labels:
-        app: ragtune-api
-        tier: api
+        app.kubernetes.io/name: ragtune
+        app.kubernetes.io/component: backend
     spec:
+      serviceAccountName: ragtune-backend-sa
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001
         runAsGroup: 10001
         fsGroup: 10001
-      affinity:
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-          - weight: 100
-            podAffinityTerm:
-              labelSelector:
-                matchExpressions:
-                - key: app
-                  operator: In
-                  values:
-                  - ragtune-api
-              topologyKey: kubernetes.io/hostname
       containers:
-      - name: ragtune-api
-        image: ghcr.io/sreeram0343/ragtune:latest
-        imagePullPolicy: Always
-        ports:
-        - containerPort: 8000
-          name: http
-        resources:
-          requests:
-            cpu: "500m"
-            memory: "1Gi"
-          limits:
-            cpu: "2000m"
-            memory: "4Gi"
-        livenessProbe:
-          httpGet:
-            path: /api/v1/health
-            port: 8000
-          initialDelaySeconds: 15
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /api/v1/health
-            port: 8000
-          initialDelaySeconds: 5
-          periodSeconds: 5
-        env:
-        - name: RAGTUNE_ENV
-          value: "production"
-        - name: DATABASE_URL
-          valueFrom:
-            secretKeyRef:
-              name: ragtune-secrets
-              key: database-url
+        - name: backend
+          image: ragtune/backend:latest
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - containerPort: 8000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: ragtune-config
+            - secretRef:
+                name: ragtune-secrets
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+          startupProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000
+            failureThreshold: 10
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            successThreshold: 1
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
