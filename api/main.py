@@ -53,10 +53,30 @@ orchestrator = AgentOrchestrator(
     xai_tracer=xai_tracer
 )
 
+from contextlib import asynccontextmanager
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Seed initial enterprise sample data on startup if storage is empty."""
+    sample_dir = os.path.join("demo_data", "sample_documents")
+    if os.path.exists(sample_dir):
+        for f in os.listdir(sample_dir):
+            f_path = os.path.join(sample_dir, f)
+            if os.path.isfile(f_path):
+                try:
+                    chunks = doc_processor.process_file(f_path)
+                    vector_store.add_chunks(chunks)
+                except Exception:
+                    pass
+    yield
+
+
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.VERSION,
-    description="Enterprise Knowledge Intelligence Platform combining Identity & Access Management, RAG, Text-to-SQL, 9-Layer Guardrails, and Explainable AI."
+    description="Enterprise Knowledge Intelligence Platform combining Identity & Access Management, RAG, Text-to-SQL, 9-Layer Guardrails, and Explainable AI.",
+    lifespan=lifespan
 )
 
 # Enable CORS for modern web clients
@@ -70,22 +90,6 @@ app.add_middleware(
 
 # Mount Identity & Access Management Router
 app.include_router(auth_router)
-
-
-@app.on_event("startup")
-def startup_event():
-    """Seed initial enterprise sample data on startup if storage is empty."""
-    # Process sample document if available
-    sample_dir = os.path.join("demo_data", "sample_documents")
-    if os.path.exists(sample_dir):
-        for f in os.listdir(sample_dir):
-            f_path = os.path.join(sample_dir, f)
-            if os.path.isfile(f_path):
-                try:
-                    chunks = doc_processor.process_file(f_path)
-                    vector_store.add_chunks(chunks)
-                except Exception:
-                    pass
 
 
 @app.get("/health", tags=["Health"])

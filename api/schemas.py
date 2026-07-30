@@ -9,8 +9,8 @@ from security.rbac import Role
 
 
 class QueryRequest(BaseModel):
-    query: str = Field(..., description="Natural language enterprise query", example="What were top sales in Q3?")
-    role: Optional[str] = Field("ANALYST", description="User security role", example="ANALYST")
+    query: str = Field(..., description="Natural language enterprise query", json_schema_extra={"example": "What were top sales in Q3?"})
+    role: Optional[str] = Field("ANALYST", description="User security role", json_schema_extra={"example": "ANALYST"})
     tenant_id: Optional[str] = Field("tenant_enterprise_default", description="Tenant ID context")
     bypass_cache: Optional[bool] = Field(False, description="Bypass cache lookup")
 
