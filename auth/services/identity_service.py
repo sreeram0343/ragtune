@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Tuple, Optional, Dict, Any
 from auth.security.crypto import CryptoService
 from auth.security.rate_limiter import RateLimiterService
-from auth.domain.models import UserDomain, UserStatus
+from auth.domain.models import UserDomain, UserStatus, utc_now
 from auth.storage.auth_db import AuthDatabaseRepository
 from auth.services.token_service import TokenService
 from auth.services.audit_service import AuditService
@@ -92,7 +92,7 @@ class IdentityService:
             return False, None, "Invalid email or password"
 
         # Check Lockout status
-        now = datetime.utcnow()
+        now = utc_now()
         if user.locked_until and user.locked_until > now:
             mins_left = int((user.locked_until - now).total_seconds() / 60) + 1
             return False, None, f"Account is temporarily locked due to multiple failed login attempts. Try again in {mins_left} minute(s)."

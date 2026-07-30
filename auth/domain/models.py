@@ -4,10 +4,14 @@ Defines domain entities, lifecycle states, and context objects.
 """
 
 from enum import Enum
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field, EmailStr
 from auth.domain.permissions import OrgRole, WorkspaceRole, Permission
+
+
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class UserStatus(str, Enum):
@@ -37,8 +41,8 @@ class UserDomain(BaseModel):
     status: UserStatus = UserStatus.ACTIVE
     failed_login_attempts: int = 0
     locked_until: Optional[datetime] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
 
 
 class OrganizationDomain(BaseModel):
@@ -48,7 +52,7 @@ class OrganizationDomain(BaseModel):
     domain: Optional[str] = None
     status: OrgStatus = OrgStatus.ACTIVE
     tier: str = "ENTERPRISE"
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class WorkspaceDomain(BaseModel):
@@ -56,28 +60,28 @@ class WorkspaceDomain(BaseModel):
     org_id: str
     name: str
     slug: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class ProjectDomain(BaseModel):
     project_id: str
     workspace_id: str
     name: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class OrganizationMemberDomain(BaseModel):
     org_id: str
     user_id: str
     role: OrgRole = OrgRole.MEMBER
-    joined_at: datetime = Field(default_factory=datetime.utcnow)
+    joined_at: datetime = Field(default_factory=utc_now)
 
 
 class WorkspaceMemberDomain(BaseModel):
     workspace_id: str
     user_id: str
     role: WorkspaceRole = WorkspaceRole.MEMBER
-    joined_at: datetime = Field(default_factory=datetime.utcnow)
+    joined_at: datetime = Field(default_factory=utc_now)
 
 
 class SessionDomain(BaseModel):
@@ -88,8 +92,8 @@ class SessionDomain(BaseModel):
     user_agent: Optional[str] = None
     is_revoked: bool = False
     expires_at: datetime
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    last_active_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
+    last_active_at: datetime = Field(default_factory=utc_now)
 
 
 class InvitationDomain(BaseModel):
@@ -101,7 +105,7 @@ class InvitationDomain(BaseModel):
     token_hash: str
     status: InvitationStatus = InvitationStatus.PENDING
     expires_at: datetime
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class AuditEventDomain(BaseModel):
@@ -116,7 +120,7 @@ class AuditEventDomain(BaseModel):
     status: str = "SUCCESS"
     ip_address: Optional[str] = None
     metadata: Dict[str, Any] = Field(default_factory=dict)
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=utc_now)
 
 
 class SecurityContext(BaseModel):

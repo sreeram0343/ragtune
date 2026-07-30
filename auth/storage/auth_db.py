@@ -3,7 +3,7 @@ RAGTUNE Enterprise Identity & Access Management - Database Storage Layer
 SQLAlchemy ORM schemas and database persistence repository.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 from sqlalchemy import (
     create_engine, Column, String, Boolean, Integer, DateTime, Text, ForeignKey, JSON
@@ -13,7 +13,7 @@ from config.settings import settings
 from auth.domain.models import (
     UserDomain, OrganizationDomain, WorkspaceDomain, ProjectDomain,
     OrganizationMemberDomain, WorkspaceMemberDomain, SessionDomain,
-    InvitationDomain, AuditEventDomain, UserStatus, OrgStatus, InvitationStatus
+    InvitationDomain, AuditEventDomain, UserStatus, OrgStatus, InvitationStatus, utc_now
 )
 from auth.domain.permissions import OrgRole, WorkspaceRole
 
@@ -31,8 +31,8 @@ class UserORM(Base):
     status = Column(String(32), default="ACTIVE")
     failed_login_attempts = Column(Integer, default=0)
     locked_until = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
 
 class OrganizationORM(Base):
@@ -44,7 +44,7 @@ class OrganizationORM(Base):
     domain = Column(String(255), nullable=True)
     status = Column(String(32), default="ACTIVE")
     tier = Column(String(64), default="ENTERPRISE")
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
 
 class WorkspaceORM(Base):
@@ -54,7 +54,7 @@ class WorkspaceORM(Base):
     org_id = Column(String(64), ForeignKey("auth_organizations.org_id"), nullable=False)
     name = Column(String(255), nullable=False)
     slug = Column(String(255), unique=True, nullable=False, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
 
 class ProjectORM(Base):
@@ -63,7 +63,7 @@ class ProjectORM(Base):
     project_id = Column(String(64), primary_key=True)
     workspace_id = Column(String(64), ForeignKey("auth_workspaces.workspace_id"), nullable=False)
     name = Column(String(255), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
 
 class OrganizationMemberORM(Base):
@@ -72,7 +72,7 @@ class OrganizationMemberORM(Base):
     org_id = Column(String(64), ForeignKey("auth_organizations.org_id"), primary_key=True)
     user_id = Column(String(64), ForeignKey("auth_users.user_id"), primary_key=True)
     role = Column(String(64), default="MEMBER")
-    joined_at = Column(DateTime, default=datetime.utcnow)
+    joined_at = Column(DateTime, default=utc_now)
 
 
 class WorkspaceMemberORM(Base):
@@ -81,7 +81,7 @@ class WorkspaceMemberORM(Base):
     workspace_id = Column(String(64), ForeignKey("auth_workspaces.workspace_id"), primary_key=True)
     user_id = Column(String(64), ForeignKey("auth_users.user_id"), primary_key=True)
     role = Column(String(64), default="MEMBER")
-    joined_at = Column(DateTime, default=datetime.utcnow)
+    joined_at = Column(DateTime, default=utc_now)
 
 
 class SessionORM(Base):
@@ -94,8 +94,8 @@ class SessionORM(Base):
     user_agent = Column(Text, nullable=True)
     is_revoked = Column(Boolean, default=False)
     expires_at = Column(DateTime, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    last_active_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    last_active_at = Column(DateTime, default=utc_now)
 
 
 class InvitationORM(Base):
@@ -109,7 +109,7 @@ class InvitationORM(Base):
     token_hash = Column(String(64), unique=True, nullable=False, index=True)
     status = Column(String(32), default="PENDING")
     expires_at = Column(DateTime, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
 
 class AuditEventORM(Base):
@@ -126,7 +126,7 @@ class AuditEventORM(Base):
     status = Column(String(32), default="SUCCESS")
     ip_address = Column(String(64), nullable=True)
     metadata_json = Column(JSON, nullable=True)
-    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    timestamp = Column(DateTime, default=utc_now, index=True)
 
 
 class AuthDatabaseRepository:
@@ -196,7 +196,7 @@ class AuthDatabaseRepository:
                 u.status = user.status.value
                 u.failed_login_attempts = user.failed_login_attempts
                 u.locked_until = user.locked_until
-                u.updated_at = datetime.utcnow()
+                u.updated_at = utc_now()
                 db.commit()
 
     # Session Management

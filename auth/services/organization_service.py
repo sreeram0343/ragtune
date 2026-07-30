@@ -10,7 +10,7 @@ from typing import Tuple, List, Optional, Dict, Any
 from auth.domain.models import (
     OrganizationDomain, WorkspaceDomain, ProjectDomain,
     OrganizationMemberDomain, WorkspaceMemberDomain, InvitationDomain,
-    OrgStatus, InvitationStatus
+    OrgStatus, InvitationStatus, utc_now
 )
 from auth.domain.permissions import OrgRole, WorkspaceRole
 from auth.security.crypto import CryptoService
@@ -177,7 +177,7 @@ class OrganizationService:
         token_hash = CryptoService.hash_token(raw_token)
 
         inv_id = f"inv_{uuid.uuid4().hex[:12]}"
-        expires_at = datetime.utcnow() + timedelta(days=INVITATION_TTL_DAYS)
+        expires_at = utc_now() + timedelta(days=INVITATION_TTL_DAYS)
 
         with self.repo.get_session() as db:
             inv_orm = InvitationORM(
@@ -220,7 +220,7 @@ class OrganizationService:
             if not inv or inv.status != InvitationStatus.PENDING.value:
                 return False, "Invalid or expired invitation token"
 
-            if inv.expires_at < datetime.utcnow():
+            if inv.expires_at < utc_now():
                 inv.status = InvitationStatus.EXPIRED.value
                 db.commit()
                 return False, "Invitation token has expired"

@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Tuple, Optional
 from auth.security.crypto import CryptoService
 from auth.security.jwt_handler import JWTHandler
-from auth.domain.models import SessionDomain
+from auth.domain.models import SessionDomain, utc_now
 from auth.storage.auth_db import AuthDatabaseRepository
 
 REFRESH_TOKEN_TTL_DAYS = 7
@@ -38,7 +38,7 @@ class TokenService:
         refresh_token = CryptoService.generate_random_token(32)
         refresh_hash = CryptoService.hash_token(refresh_token)
 
-        expires_at = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_TTL_DAYS)
+        expires_at = utc_now() + timedelta(days=REFRESH_TOKEN_TTL_DAYS)
 
         sess = SessionDomain(
             session_id=session_id,
@@ -89,7 +89,7 @@ class TokenService:
             self.repo.revoke_all_user_sessions(sess.user_id)
             return False, None, None, "Security violation: Revoked refresh token reused. All sessions invalidated."
 
-        if sess.expires_at < datetime.utcnow():
+        if sess.expires_at < utc_now():
             self.repo.revoke_session(sess.session_id)
             return False, None, None, "Refresh token has expired. Please log in again."
 
