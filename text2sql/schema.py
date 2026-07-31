@@ -141,13 +141,20 @@ class SchemaIntrospector:
             return tables
 
     def match_tables_for_query(self, query: str) -> List[TableSchema]:
-        """Matches relevant database tables based on query business terminology."""
+        """Matches relevant database tables based on query business terminology using exact word boundaries."""
+        import re
         q_lower = query.lower()
         matched = []
         with self._lock:
             for t in self._schemas.values():
                 t_name = t.table_name.lower()
-                if t_name in q_lower or any(c.name.lower() in q_lower for c in t.columns):
+                # Check exact table name or column name as word boundary
+                t_match = bool(re.search(r'\b' + re.escape(t_name) + r'\b', q_lower))
+                c_match = any(
+                    len(c.name) > 2 and bool(re.search(r'\b' + re.escape(c.name.lower()) + r'\b', q_lower))
+                    for c in t.columns
+                )
+                if t_match or c_match:
                     matched.append(t)
                 elif ("customer" in q_lower or "client" in q_lower or "tier" in q_lower) and t_name == "customers":
                     matched.append(t)
@@ -157,7 +164,7 @@ class SchemaIntrospector:
                     matched.append(t)
                 elif ("sales" in q_lower or "revenue" in q_lower) and t_name in ["sales", "customers", "orders"]:
                     matched.append(t)
-                elif ("employee" in q_lower or "staff" in q_lower or "salary" in q_lower or "department" in q_lower) and t_name == "employees":
+                elif ("employee" in q_lower or "employees" in q_lower or "staff" in q_lower or "salary" in q_lower or "paid" in q_lower or "department" in q_lower) and t_name == "employees":
                     matched.append(t)
 
             # Deduplicate matched while preserving order
@@ -171,4 +178,5 @@ class SchemaIntrospector:
             if not unique_matched and self._schemas:
                 unique_matched.append(list(self._schemas.values())[0])
             return unique_matched
+
 
