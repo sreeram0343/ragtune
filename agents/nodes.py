@@ -54,15 +54,25 @@ class AgentNodeExecutors:
         return state
 
     def intent_router_node(self, state: AgentState) -> AgentState:
-        """Classifies query intent to route execution."""
+        """Classifies query intent to route execution dynamically."""
         t0 = time.time()
         query = state.pre_guardrail_result.sanitized_query if state.pre_guardrail_result else state.user_query
         q_lower = query.lower()
 
-        # Structured indicators
-        sql_keywords = ["how many", "count", "total", "sales", "revenue", "orders", "customers", "table", "sum", "average"]
-        # Unstructured indicators
-        rag_keywords = ["policy", "contract", "terms", "document", "reimbursement", "clause", "sla", "definition", "guideline"]
+        # Expanded structured indicators
+        sql_keywords = [
+            "how many", "count", "total", "sales", "revenue", "orders", "customers",
+            "table", "sum", "average", "avg", "salary", "employee", "employees",
+            "staff", "department", "tier", "amount", "contract limit", "delivered",
+            "highest", "lowest", "top", "list all", "records"
+        ]
+
+        # Expanded unstructured indicators
+        rag_keywords = [
+            "policy", "contract", "terms", "document", "reimbursement", "clause",
+            "sla", "definition", "guideline", "security", "encryption", "per diem",
+            "travel", "receipt", "approval", "outage", "uptime", "support", "agreement"
+        ]
 
         has_sql = any(k in q_lower for k in sql_keywords)
         has_rag = any(k in q_lower for k in rag_keywords)
@@ -87,6 +97,7 @@ class AgentNodeExecutors:
             )
 
         return state
+
 
     def sql_agent_node(self, state: AgentState) -> AgentState:
         """Executes Text-to-SQL synthesis and query execution."""
