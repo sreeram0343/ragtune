@@ -134,27 +134,73 @@ class AgentNodeExecutors:
         return state
 
     def evidence_synthesis_node(self, state: AgentState) -> AgentState:
-        """Synthesizes structured SQL tabular data and unstructured text evidence."""
+        """Synthesizes structured SQL tabular data and unstructured text evidence into formatted narratives and tables."""
         t0 = time.time()
         narrative_parts = []
 
+        # 1. Process Tabular SQL Database Findings
         if state.intent_route in ["STRUCTURED_SQL", "HYBRID_FUSION"] and state.sql_rows:
-            narrative_parts.append(f"**Structured Database Findings:** Found {len(state.sql_rows)} matching record(s).")
-            if len(state.sql_rows) == 1:
-                first_row = state.sql_rows[0]
-                details_str = ", ".join(f"{k}: {v}" for k, v in list(first_row.items())[:5])
-                narrative_parts.append(f"- Summary: {details_str}")
-            else:
-                narrative_parts.append(f"- Query executed: `{state.sanitized_sql}`")
+            rows = state.sql_rows
+            cols = state.sql_columns or (list(rows[0].keys()) if isinstance(rows[0], dict) else [])
 
+            narrative_parts.append(f"### 📊 Structured Database Insights ({len(rows)} record(s) found)\n")
+
+            # Generate Executive Narrative Summary
+            if len(rows) == 1 and isinstance(rows[0], dict):
+                first_row = rows[0]
+                summary_items = [f"**{k.replace('_', ' ').title()}**: {v}" for k, v in first_row.items() if v is not None]
+                narrative_parts.append(f"**Key Result Summary:**\n" + "\n".join(f"- {item}" for item in summary_items))
+            elif len(rows) > 1 and isinstance(rows[0], dict):
+                # Check for numerical aggregation column
+                num_col = None
+                for candidate in ["revenue", "annual_revenue", "order_amount", "salary", "total_value", "total_revenue"]:
+                    if candidate in cols:
+                        num_col = candidate
+                        break
+
+                if num_col:
+                    total_val = sum(float(r[num_col]) for r in rows if r.get(num_col) is not None)
+                    narrative_parts.append(f"**Aggregated Total ({num_col.replace('_', ' ').title()}):** `${total_val:,.2f}` across {len(rows)} entries.\n")
+
+            # Construct Markdown Data Table
+            if cols and isinstance(rows[0], dict):
+                header_line = "| " + " | ".join([c.replace("_", " ").title() for c in cols]) + " |"
+                sep_line = "| " + " | ".join(["---"] * len(cols)) + " |"
+                table_rows = []
+                for row in rows[:15]:  # Display top 15 rows in markdown table
+                    vals = []
+                    for c in cols:
+                        val = row.get(c, "")
+                        if isinstance(val, float):
+                            vals.append(f"${val:,.2f}" if "revenue" in c or "amount" in c or "salary" in c or "limit" in c else f"{val:.2f}")
+                        else:
+                            vals.append(str(val))
+                    table_rows.append("| " + " | ".join(vals) + " |")
+
+                markdown_table = "\n".join([header_line, sep_line] + table_rows)
+                narrative_parts.append(f"\n{markdown_table}\n")
+
+            if state.sanitized_sql:
+                narrative_parts.append(f"*(Query Executed: `{state.sanitized_sql}`)*\n")
+
+        # 2. Process Unstructured Knowledge Evidence
         if state.intent_route in ["UNSTRUCTURED_RAG", "HYBRID_FUSION"] and state.retrieved_chunks:
-            narrative_parts.append("\n**Unstructured Knowledge Evidence:**")
-            for chunk in state.retrieved_chunks[:3]:
-                snippet = chunk.get('content', '')[:150].replace('\n', ' ')
-                narrative_parts.append(f"- [{chunk.get('title')}] (Relevance: {chunk.get('rerank_score', 0):.2f}): \"{snippet}...\"")
+            narrative_parts.append("### 📜 Verified Knowledge Evidence\n")
+
+            for idx, chunk in enumerate(state.retrieved_chunks[:3], start=1):
+                title = chunk.get("title", "Document Evidence")
+                score = chunk.get("rerank_score", chunk.get("rrf_score", 0.0))
+                content = chunk.get("content", "").strip()
+
+                # Highlight key sentence or top 250 characters
+                snippet = content[:300].replace("\n", " ")
+                narrative_parts.append(
+                    f"**Evidence #{idx}: {title}** *(Relevance Score: {score * 100:.1f}%)*\n"
+                    f"> \"{snippet}...\"\n"
+                )
 
         if not narrative_parts:
-            narrative_parts.append("No direct records or matching document snippets were found for the query criteria.")
+            narrative_parts.append("No matching database records or document evidence were retrieved for the given query parameters.")
 
         state.final_response = "\n".join(narrative_parts)
 
@@ -162,11 +208,12 @@ class AgentNodeExecutors:
             self.tracer.record_step(
                 state.xai_trace,
                 agent_node="EvidenceSynthesisNode",
-                action_taken="Fused findings into grounded response narrative",
+                action_taken="Fused findings into structured Markdown table and grounded narrative",
                 latency_ms=(time.time() - t0) * 1000
             )
 
         return state
+
 
     def post_guardrail_node(self, state: AgentState) -> AgentState:
         """Post-execution 9-layer guardrails validation node."""
