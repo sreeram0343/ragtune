@@ -67,13 +67,16 @@ jobs:
             ghcr.io/${{ steps.repo.outputs.REPO }}:${{ github.sha }}
 
       - name: Deploy to Kubernetes Cluster
+        if: ${{ secrets.KUBE_CONFIG != '' }}
         uses: azure/k8s-set-context@v4
         with:
           method: kubeconfig
           kubeconfig: ${{ secrets.KUBE_CONFIG }}
 
       - name: Apply Kubernetes Manifests
+        if: ${{ secrets.KUBE_CONFIG != '' }}
         run: |
           kubectl apply -f k8s/
           kubectl rollout status deployment/ragtune-api -n ragtune-prod --timeout=180s
+
 

@@ -160,19 +160,21 @@ PY
   deploy-production:
     name: Deploy to Production Cluster (Kubernetes)
     needs: build-containers
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && secrets.KUBE_CONFIG != ''
     runs-on: ubuntu-latest
     environment: production
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Kubernetes Context
+        if: ${{ secrets.KUBE_CONFIG != '' }}
         uses: azure/k8s-set-context@v4
         with:
           method: kubeconfig
           kubeconfig: ${{ secrets.KUBE_CONFIG }}
 
       - name: Apply Kubernetes Manifests with Rolling Update
+        if: ${{ secrets.KUBE_CONFIG != '' }}
         run: |
           kubectl apply -f k8s/namespace.yaml
           kubectl apply -f k8s/configmap.yaml
@@ -187,5 +189,7 @@ PY
           kubectl rollout status deployment/worker -n ragtune-prod --timeout=180s || (kubectl rollout undo deployment/worker -n ragtune-prod && exit 1)
 
       - name: Post-Deployment Smoke Verification
+        if: ${{ secrets.KUBE_CONFIG != '' }}
         run: |
           python scripts/verify_deployment.py --url https://ragtune.enterprise.com
+
