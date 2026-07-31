@@ -449,8 +449,71 @@ function escapeHtml(str) {
 
 function formatMarkdown(text) {
     if (!text) return '';
+    const lines = text.split('\n');
+    let html = '';
+    let inTable = false;
+    let tableHeaders = [];
+    let tableRows = [];
+
+    for (let i = 0; i < lines.length; i++) {
+        let line = lines[i].trim();
+
+        // Detect Markdown Table
+        if (line.startsWith('|') && line.endsWith('|')) {
+            if (line.includes('---')) {
+                // Table separator line
+                continue;
+            }
+
+            const cells = line.split('|').map(c => c.trim()).filter((c, idx, arr) => idx > 0 && idx < arr.length - 1);
+            if (!inTable) {
+                inTable = true;
+                tableHeaders = cells;
+            } else {
+                tableRows.push(cells);
+            }
+            continue;
+        } else if (inTable) {
+            // End of table block - render HTML table
+            html += renderHtmlTable(tableHeaders, tableRows);
+            inTable = false;
+            tableHeaders = [];
+            tableRows = [];
+        }
+
+        // Headers
+        if (line.startsWith('### ')) {
+            html += `<h4 style="font-size:0.9rem; font-weight:700; margin:0.75rem 0 0.4rem 0;">${processInline(line.substring(4))}</h4>`;
+        } else if (line.startsWith('## ')) {
+            html += `<h3 style="font-size:1rem; font-weight:700; margin:0.85rem 0 0.5rem 0;">${processInline(line.substring(3))}</h3>`;
+        } else if (line.startsWith('> ')) {
+            html += `<div class="markdown-blockquote">${processInline(line.substring(2))}</div>`;
+        } else if (line.startsWith('- ')) {
+            html += `<div style="margin-left:0.75rem; margin-bottom:0.25rem;">• ${processInline(line.substring(2))}</div>`;
+        } else if (line) {
+            html += `<p style="margin:0.35rem 0;">${processInline(line)}</p>`;
+        }
+    }
+
+    if (inTable) {
+        html += renderHtmlTable(tableHeaders, tableRows);
+    }
+
+    return html;
+}
+
+function renderHtmlTable(headers, rows) {
+    let ths = headers.map(h => `<th>${processInline(h)}</th>`).join('');
+    let trs = rows.map(r => `<tr>${r.map(c => `<td>${processInline(c)}</td>`).join('')}</tr>`).join('');
+    return `<div class="markdown-table-wrapper"><table class="markdown-table"><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table></div>`;
+}
+
+function processInline(text) {
+    if (!text) return '';
     let formatted = escapeHtml(text);
     formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
     formatted = formatted.replace(/`([^`]+)`/g, '<code class="font-mono" style="background:var(--bg-muted); padding:0.1rem 0.3rem; border-radius:4px; border:1px solid var(--border);">$1</code>');
     return formatted;
 }
+

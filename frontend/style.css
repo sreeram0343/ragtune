@@ -887,3 +887,51 @@ button, input, select, textarea {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+/* Markdown Table & Evidence Formatting */
+.markdown-table-wrapper {
+    overflow-x: auto;
+    margin: 0.75rem 0;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+}
+
+.markdown-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.825rem;
+    text-align: left;
+}
+
+.markdown-table th {
+    background: var(--bg-subtle);
+    padding: 0.5rem 0.75rem;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-primary);
+}
+
+.markdown-table td {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+}
+
+.markdown-table tr:last-child td {
+    border-bottom: none;
+}
+
+.markdown-table tr:hover td {
+    background: var(--bg-subtle);
+}
+
+.markdown-blockquote {
+    border-left: 3px solid var(--accent);
+    background: var(--bg-subtle);
+    padding: 0.5rem 0.75rem;
+    margin: 0.5rem 0;
+    font-size: 0.825rem;
+    color: var(--text-secondary);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
