@@ -158,6 +158,11 @@ def process_query(payload: QueryRequest):
     elif final_state.pre_guardrail_result:
         guardrail_matrix = [ev.model_dump() for ev in final_state.pre_guardrail_result.layer_evaluations]
 
+    # Ensure sql_columns is populated if sql_rows exist
+    sql_cols = final_state.sql_columns
+    if not sql_cols and final_state.sql_rows and isinstance(final_state.sql_rows[0], dict):
+        sql_cols = list(final_state.sql_rows[0].keys())
+
     response_data = QueryResponse(
         query=payload.query,
         intent_route=final_state.intent_route,
@@ -170,7 +175,7 @@ def process_query(payload: QueryRequest):
         hitl_reason=final_state.hitl_reason,
         generated_sql=final_state.sanitized_sql,
         sql_rows=final_state.sql_rows,
-        sql_columns=final_state.sql_columns,
+        sql_columns=sql_cols,
         retrieved_chunks=final_state.retrieved_chunks,
         guardrail_matrix=guardrail_matrix,
         trace_id=final_state.xai_trace.trace_id if final_state.xai_trace else None
@@ -178,6 +183,7 @@ def process_query(payload: QueryRequest):
 
     # Save to Cache if clean pass
     if not final_state.hitl_flagged and final_state.overall_confidence >= 0.8:
+
         cache_manager.set(cache_key, response_data.model_dump())
 
     return response_data
