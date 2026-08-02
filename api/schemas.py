@@ -61,3 +61,36 @@ class HITLActionResponse(BaseModel):
     message: str
     ticket_id: str
     status: str
+
+
+class DocumentItem(BaseModel):
+    doc_id: str
+    title: str
+    chunks_count: int
+    sample_text: str
+
+
+class DocumentListResponse(BaseModel):
+    total_documents: int
+    total_chunks: int
+    documents: List[DocumentItem]
+
+
+class DocumentDeleteResponse(BaseModel):
+    success: bool
+    doc_id: str
+    chunks_removed: int
+    message: str
+
+
+class ExportRequest(BaseModel):
+    export_format: str = Field("json", description="Export format: 'json', 'csv', or 'markdown'")
+    query_response: QueryResponse
+
+
+class ExportResponse(BaseModel):
+    filename: str
+    export_format: str
+    content_type: str
+    content: str
+

@@ -74,10 +74,19 @@ class AgentNodeExecutors:
             "travel", "receipt", "approval", "outage", "uptime", "support", "agreement"
         ]
 
+        summarize_keywords = ["summarize", "summary", "overview", "executive summary", "key takeaways", "brief me"]
+        policy_keywords = ["compliance policy", "security policy", "governance policy", "standard operating procedure"]
+
         has_sql = any(k in q_lower for k in sql_keywords)
         has_rag = any(k in q_lower for k in rag_keywords)
+        has_sum = any(k in q_lower for k in summarize_keywords)
+        has_pol = any(k in q_lower for k in policy_keywords)
 
-        if has_sql and has_rag:
+        if has_sum:
+            route = "SUMMARIZATION"
+        elif has_pol:
+            route = "POLICY_LOOKUP"
+        elif has_sql and has_rag:
             route = "HYBRID_FUSION"
         elif has_sql:
             route = "STRUCTURED_SQL"
@@ -195,8 +204,13 @@ class AgentNodeExecutors:
                 narrative_parts.append(f"*(Query Executed: `{state.sanitized_sql}`)*\n")
 
         # 2. Process Unstructured Knowledge Evidence
-        if state.intent_route in ["UNSTRUCTURED_RAG", "HYBRID_FUSION"] and state.retrieved_chunks:
-            narrative_parts.append("### 📜 Verified Knowledge Evidence\n")
+        if state.intent_route in ["UNSTRUCTURED_RAG", "HYBRID_FUSION", "SUMMARIZATION", "POLICY_LOOKUP"] and state.retrieved_chunks:
+            if state.intent_route == "SUMMARIZATION":
+                narrative_parts.append("### 📋 Executive Document Brief & Synthesis\n")
+            elif state.intent_route == "POLICY_LOOKUP":
+                narrative_parts.append("### 🛡️ Security & Compliance Governance Policy Verification\n")
+            else:
+                narrative_parts.append("### 📜 Verified Knowledge Evidence\n")
 
             for idx, chunk in enumerate(state.retrieved_chunks[:3], start=1):
                 title = chunk.get("title", "Document Evidence")

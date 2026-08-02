@@ -58,7 +58,7 @@ class AgentOrchestrator:
         route = state.intent_route
         if route == "STRUCTURED_SQL":
             state = self.executors.sql_agent_node(state)
-        elif route == "UNSTRUCTURED_RAG":
+        elif route in ["UNSTRUCTURED_RAG", "SUMMARIZATION", "POLICY_LOOKUP"]:
             state = self.executors.rag_agent_node(state)
         else:  # HYBRID_FUSION
             state = self.executors.sql_agent_node(state)

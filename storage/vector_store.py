@@ -161,3 +161,65 @@ class HybridVectorStore:
             results.append((self.chunk_map[chunk_id], float(rrf_score)))
 
         return results
+
+    def list_documents(self) -> List[Dict[str, Any]]:
+        """Returns a summarized list of all indexed documents and chunk statistics."""
+        doc_groups: Dict[str, Dict[str, Any]] = {}
+        for chunk in self.chunks:
+            d_id = chunk.metadata.get("doc_id") or chunk.chunk_id
+            title = chunk.metadata.get("title") or chunk.metadata.get("file_name") or "Document"
+            if d_id not in doc_groups:
+                doc_groups[d_id] = {
+                    "doc_id": d_id,
+                    "title": title,
+                    "chunks_count": 0,
+                    "sample_text": chunk.content[:150] + "..." if len(chunk.content) > 150 else chunk.content
+                }
+            doc_groups[d_id]["chunks_count"] += 1
+
+        return list(doc_groups.values())
+
+    def delete_document(self, doc_id: str) -> int:
+        """Purges all chunks associated with doc_id from dense and sparse indices."""
+        target_ids = {
+            chunk.chunk_id
+            for chunk in self.chunks
+            if chunk.metadata.get("doc_id") == doc_id or chunk.chunk_id == doc_id
+        }
+
+        if not target_ids:
+            return 0
+
+        # Filter out target chunks
+        new_chunks = []
+        new_dense = []
+        new_tokenized = []
+
+        for idx, chunk in enumerate(self.chunks):
+            if chunk.chunk_id not in target_ids:
+                new_chunks.append(chunk)
+                new_dense.append(self.dense_vectors[idx])
+                new_tokenized.append(self.tokenized_corpus[idx])
+            else:
+                self.chunk_map.pop(chunk.chunk_id, None)
+
+        removed_count = len(self.chunks) - len(new_chunks)
+        self.chunks = new_chunks
+        self.dense_vectors = new_dense
+        self.tokenized_corpus = new_tokenized
+
+        # Rebuild term frequencies
+        self.doc_freqs.clear()
+        for tokens in self.tokenized_corpus:
+            for token in set(tokens):
+                self.doc_freqs[token] = self.doc_freqs.get(token, 0) + 1
+
+        self.corpus_size = len(self.chunks)
+        if self.corpus_size > 0:
+            total_len = sum(len(t) for t in self.tokenized_corpus)
+            self.avg_doc_len = total_len / self.corpus_size
+        else:
+            self.avg_doc_len = 0.0
+
+        return removed_count
+

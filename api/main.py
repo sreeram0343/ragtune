@@ -3,9 +3,12 @@ RAGTUNE - Enterprise API Gateway & REST Server
 Exposes enterprise endpoints for intelligence queries, IAM, ingestion, HITL hub, and XAI tracing.
 """
 
-import time
+import csv
+import io
+import json
 import os
-from typing import Dict, Any, List
+import time
+from typing import Dict, Any, List, Optional
 from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -28,7 +31,9 @@ from agents.graph import AgentOrchestrator
 from api.schemas import (
     QueryRequest, QueryResponse,
     IngestTextRequest, IngestResponse,
-    HITLActionRequest, HITLActionResponse
+    HITLActionRequest, HITLActionResponse,
+    DocumentListResponse, DocumentDeleteResponse, DocumentItem,
+    ExportRequest, ExportResponse
 )
 from auth.api.routes import router as auth_router
 
@@ -206,6 +211,96 @@ def ingest_text(payload: IngestTextRequest):
         chunks_created=len(chunks),
         message=f"Successfully indexed {len(chunks)} semantic chunk(s) into hybrid retriever."
     )
+
+
+@app.post("/api/v1/ingest/file", response_model=IngestResponse, tags=["Ingestion"])
+async def ingest_file(file: UploadFile = File(...), title: Optional[str] = Form(None)):
+    """Ingests uploaded file (.md, .txt) into hybrid vector index."""
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Filename required")
+
+    doc_title = title or file.filename
+    doc_id = f"doc_{file.filename.replace(' ', '_').lower()}_{int(time.time())}"
+
+    content = (await file.read()).decode("utf-8", errors="ignore")
+    chunks = doc_processor.process_text(
+        text=content,
+        doc_id=doc_id,
+        title=doc_title,
+        metadata={"file_name": file.filename, "doc_id": doc_id, "title": doc_title}
+    )
+    vector_store.add_chunks(chunks)
+    return IngestResponse(
+        success=True,
+        doc_id=doc_id,
+        title=doc_title,
+        chunks_created=len(chunks),
+        message=f"Successfully uploaded and indexed '{file.filename}' into {len(chunks)} chunk(s)."
+    )
+
+
+@app.get("/api/v1/documents", response_model=DocumentListResponse, tags=["Ingestion"])
+def list_documents():
+    """Lists indexed document repository metadata and chunk counts."""
+    docs_data = vector_store.list_documents()
+    items = [DocumentItem(**d) for d in docs_data]
+    return DocumentListResponse(
+        total_documents=len(items),
+        total_chunks=len(vector_store.chunks),
+        documents=items
+    )
+
+
+@app.delete("/api/v1/documents/{doc_id}", response_model=DocumentDeleteResponse, tags=["Ingestion"])
+def delete_document(doc_id: str):
+    """Evicts document chunks by doc_id from hybrid vector store."""
+    removed = vector_store.delete_document(doc_id)
+    if removed == 0:
+        raise HTTPException(status_code=404, detail=f"Document '{doc_id}' not found")
+    return DocumentDeleteResponse(
+        success=True,
+        doc_id=doc_id,
+        chunks_removed=removed,
+        message=f"Successfully deleted document '{doc_id}' and purged {removed} chunk(s)."
+    )
+
+
+@app.post("/api/v1/export/query", response_model=ExportResponse, tags=["Query Intelligence"])
+def export_query_result(payload: ExportRequest):
+    """Exports Query Intelligence response as CSV or JSON report."""
+    q_resp = payload.query_response
+    fmt = payload.export_format.lower()
+
+    if fmt == "csv":
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        if q_resp.sql_rows and q_resp.sql_columns:
+            writer.writerow(q_resp.sql_columns)
+            for row in q_resp.sql_rows:
+                writer.writerow([row.get(c, "") for c in q_resp.sql_columns])
+        else:
+            writer.writerow(["Query", "Intent Route", "Overall Confidence", "Execution Time (ms)", "Cache Hit"])
+            writer.writerow([q_resp.query, q_resp.intent_route, q_resp.overall_confidence, q_resp.execution_time_ms, q_resp.cache_hit])
+            writer.writerow([])
+            writer.writerow(["Response Narrative"])
+            writer.writerow([q_resp.response])
+
+        csv_str = output.getvalue()
+        return ExportResponse(
+            filename=f"ragtune_export_{int(time.time())}.csv",
+            export_format="csv",
+            content_type="text/csv",
+            content=csv_str
+        )
+    else:
+        json_str = json.dumps(q_resp.model_dump(), indent=2)
+        return ExportResponse(
+            filename=f"ragtune_export_{int(time.time())}.json",
+            export_format="json",
+            content_type="application/json",
+            content=json_str
+        )
 
 
 @app.get("/api/v1/schema", tags=["Database"])

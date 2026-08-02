@@ -79,6 +79,7 @@ window.switchPane = function(paneId) {
 
     if (paneId === 'hitl') loadHITLQueue();
     if (paneId === 'sql-analyst') loadSchemaCatalog();
+    if (paneId === 'documents') loadDocumentsList();
 
     closeCommandPalette();
 };
@@ -207,6 +208,9 @@ async function submitChatQuery() {
         if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
         const data = await res.json();
 
+        // Save last result for export
+        window.lastQueryResult = data;
+
         // Render AI Answer
         const bubble = aiMsg.querySelector('.chat-bubble');
         let sqlBadge = data.generated_sql ? `<div style="font-family:var(--font-mono); font-size:0.8rem; background:var(--bg-muted); padding:0.5rem; border-radius:var(--radius-sm); margin:0.5rem 0; border:1px solid var(--border);">${escapeHtml(data.generated_sql)}</div>` : '';
@@ -219,6 +223,8 @@ async function submitChatQuery() {
                 <span class="badge-mono">Confidence: ${(data.overall_confidence * 100).toFixed(1)}%</span>
                 <span class="badge-mono">Latency: ${data.execution_time_ms} ms</span>
                 <button class="btn btn-outline btn-sm" onclick="inspectXAITrace('${data.trace_id}')">Inspect XAI Trace</button>
+                <button class="btn btn-outline btn-sm" onclick="exportQueryResult('csv')">Export CSV</button>
+                <button class="btn btn-outline btn-sm" onclick="exportQueryResult('json')">Export JSON</button>
             </div>
         `;
 
@@ -420,20 +426,123 @@ async function checkHealthStatus() {
     } catch (e) {}
 }
 
-// Document Upload Simulation Trigger
+// Document Management & File Upload Trigger
 window.triggerFileUpload = function() {
-    const sampleText = "Acme Enterprise Master Service Agreement SLA Uptime Commitment is 99.99% for Severity 1 outages.";
-    fetch('/api/v1/ingest/text', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            text: sampleText,
-            title: "acme_sla_master_agreement.md",
-            doc_id: `doc_${Date.now()}`
-        })
-    }).then(res => res.json()).then(data => {
-        showToast(data.message || 'Document ingested successfully', 'success');
-    }).catch(() => showToast('Failed to ingest document', 'danger'));
+    let fileInput = document.getElementById('document-file-input');
+    if (!fileInput) {
+        fileInput = document.createElement('input');
+        fileInput.id = 'document-file-input';
+        fileInput.type = 'file';
+        fileInput.accept = '.md,.txt,.pdf,.csv';
+        fileInput.style.display = 'none';
+        document.body.appendChild(fileInput);
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('title', file.name);
+            try {
+                showToast(`Uploading '${file.name}'...`, 'info');
+                const res = await fetch('/api/v1/ingest/file', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast(data.message || 'File uploaded and indexed successfully!', 'success');
+                    loadDocumentsList();
+                } else {
+                    showToast(data.detail || 'Upload failed', 'danger');
+                }
+            } catch (err) {
+                showToast(`Upload error: ${err.message}`, 'danger');
+            }
+        });
+    }
+    fileInput.click();
+};
+
+window.loadDocumentsList = async function() {
+    const tbody = document.getElementById('documents-table-body');
+    if (!tbody) return;
+
+    try {
+        const res = await fetch('/api/v1/documents');
+        if (!res.ok) return;
+        const data = await res.json();
+
+        if (!data.documents || data.documents.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No documents currently indexed in vector store.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = '';
+        data.documents.forEach(doc => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${escapeHtml(doc.title)}</strong></td>
+                <td><span class="badge-mono">${doc.doc_id.endsWith('.pdf') ? 'PDF' : 'Markdown/TXT'}</span></td>
+                <td>${doc.chunks_count} Chunks</td>
+                <td><span class="badge-mono badge-success">ACTIVE</span></td>
+                <td>${new Date().toISOString().split('T')[0]}</td>
+                <td>
+                    <button class="btn btn-outline btn-sm" onclick="deleteDocument('${doc.doc_id}')" style="color:var(--danger); border-color:var(--danger-border);">Delete</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (e) {
+        console.error(e);
+    }
+};
+
+window.deleteDocument = async function(docId) {
+    if (!confirm(`Are you sure you want to delete document '${docId}'?`)) return;
+    try {
+        const res = await fetch(`/api/v1/documents/${encodeURIComponent(docId)}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (res.ok) {
+            showToast(data.message || 'Document deleted', 'success');
+            loadDocumentsList();
+        } else {
+            showToast(data.detail || 'Delete failed', 'danger');
+        }
+    } catch (e) {
+        showToast('Error deleting document', 'danger');
+    }
+};
+
+window.exportQueryResult = async function(format) {
+    if (!window.lastQueryResult) {
+        showToast('No query result available to export', 'warning');
+        return;
+    }
+    try {
+        const res = await fetch('/api/v1/export/query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                export_format: format,
+                query_response: window.lastQueryResult
+            })
+        });
+        if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+        const data = await res.json();
+
+        const blob = new Blob([data.content], { type: data.content_type });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = data.filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast(`Downloaded ${data.filename}`, 'success');
+    } catch (e) {
+        showToast(`Export failed: ${e.message}`, 'danger');
+    }
 };
 
 window.inspectNode = function(nodeName) {
