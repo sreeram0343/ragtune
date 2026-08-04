@@ -7,7 +7,6 @@ import hashlib
 import hmac
 import os
 import secrets
-from typing import Tuple
 
 # OWASP Recommended Iterations for PBKDF2-HMAC-SHA256
 HASH_ALGORITHM = "sha256"
@@ -27,10 +26,7 @@ class CryptoService:
 
         salt = os.urandom(SALT_SIZE_BYTES)
         derived_key = hashlib.pbkdf2_hmac(
-            HASH_ALGORITHM,
-            password.encode("utf-8"),
-            salt,
-            HASH_ITERATIONS
+            HASH_ALGORITHM, password.encode("utf-8"), salt, HASH_ITERATIONS
         )
         return f"pbkdf2_sha256${HASH_ITERATIONS}${salt.hex()}${derived_key.hex()}"
 
@@ -52,10 +48,7 @@ class CryptoService:
             expected_key = bytes.fromhex(parts[3])
 
             derived_key = hashlib.pbkdf2_hmac(
-                HASH_ALGORITHM,
-                password.encode("utf-8"),
-                salt,
-                iterations
+                HASH_ALGORITHM, password.encode("utf-8"), salt, iterations
             )
             return hmac.compare_digest(derived_key, expected_key)
         except Exception:
