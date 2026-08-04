@@ -3,21 +3,17 @@ RAGTUNE Enterprise Verification & Quality Assurance Engine - Self-RAG Reflector
 Evaluates Self-RAG reflection tokens ([IS_SUPPORTED], [IS_RELEVANT], [UTILITY]) for self-critique.
 """
 
-from typing import List, Tuple
 from verification.domain import ReflectionToken, VerificationClaim
 
 
 class SelfRAGReflector:
     def reflect(
-        self,
-        query: str,
-        response_narrative: str,
-        claims: List[VerificationClaim]
-    ) -> List[ReflectionToken]:
+        self, query: str, response_narrative: str, claims: list[VerificationClaim]
+    ) -> list[ReflectionToken]:
         """
         Computes Self-RAG reflection tokens evaluating answer support, relevance, and utility.
         """
-        tokens: List[ReflectionToken] = []
+        tokens: list[ReflectionToken] = []
 
         # 1. [IS_SUPPORTED] Token
         if claims:
@@ -30,7 +26,7 @@ class SelfRAGReflector:
             ReflectionToken(
                 token_type="[IS_SUPPORTED]",
                 score=supp_score,
-                rationale=f"{int(supp_score*100)}% of claims are directly supported by source evidence."
+                rationale=f"{int(supp_score*100)}% of claims are directly supported by source evidence.",
             )
         )
 
@@ -47,7 +43,7 @@ class SelfRAGReflector:
             ReflectionToken(
                 token_type="[IS_RELEVANT]",
                 score=rel_score,
-                rationale=f"Response directly addresses query objectives (Relevance: {rel_score})."
+                rationale=f"Response directly addresses query objectives (Relevance: {rel_score}).",
             )
         )
 
@@ -57,7 +53,7 @@ class SelfRAGReflector:
             ReflectionToken(
                 token_type="[UTILITY]",
                 score=util_score,
-                rationale=f"Enterprise answer utility score calibrated at {util_score}."
+                rationale=f"Enterprise answer utility score calibrated at {util_score}.",
             )
         )
 
