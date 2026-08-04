@@ -1,3 +1,3 @@
-from .tracer import XAITracer, XAITrace, ExecutionStep
+from .tracer import ExecutionStep, XAITrace, XAITracer
 
-__all__ = ["XAITracer", "XAITrace", "ExecutionStep"]
+__all__ = ["ExecutionStep", "XAITrace", "XAITracer"]
