@@ -4,15 +4,18 @@ Validates tenant boundaries, Org/Workspace roles, and fine-grained permissions.
 """
 
 import time
-from typing import Dict, Optional
-from input_security.framework.stage import (
-    BaseSecurityStage, StageResult, SecurityRequestContainer, SecurityViolationException
-)
-from auth.services.authorization_service import AuthorizationService
+
 from auth.domain.permissions import Permission
+from auth.services.authorization_service import AuthorizationService
+from input_security.framework.stage import (
+    BaseSecurityStage,
+    SecurityRequestContainer,
+    SecurityViolationException,
+    StageResult,
+)
 
 # Map endpoint paths to required permissions
-PATH_PERMISSION_MAP: Dict[str, Permission] = {
+PATH_PERMISSION_MAP: dict[str, Permission] = {
     "/api/v1/auth/invitations": Permission.ORG_MANAGE_MEMBERS,
     "/api/v1/auth/audit-logs": Permission.AUDIT_READ,
     "/api/v1/auth/admin/users": Permission.USER_SUSPEND,
@@ -40,12 +43,12 @@ class RBACAuthorizationStage(BaseSecurityStage):
                 threat_score=0.0,
                 sanitized_payload=container.parsed_payload,
                 audit_notes=audit_notes,
-                execution_time_ms=round((time.time() - t0) * 1000, 2)
+                execution_time_ms=round((time.time() - t0) * 1000, 2),
             )
 
         # Determine required permission for path
         path_clean = container.path.split("?")[0]
-        required_perm: Optional[Permission] = None
+        required_perm: Permission | None = None
         for prefix, perm in PATH_PERMISSION_MAP.items():
             if path_clean.startswith(prefix):
                 required_perm = perm
@@ -57,9 +60,11 @@ class RBACAuthorizationStage(BaseSecurityStage):
                     message=f"Forbidden: Action on path '{path_clean}' requires permission '{required_perm.value}'",
                     status_code=403,
                     stage_name=self.stage_name,
-                    risk_score=90.0
+                    risk_score=90.0,
                 )
-            audit_notes.append(f"Granted permission '{required_perm.value}' for path '{path_clean}'")
+            audit_notes.append(
+                f"Granted permission '{required_perm.value}' for path '{path_clean}'"
+            )
 
         latency = (time.time() - t0) * 1000
         return StageResult(
@@ -69,5 +74,5 @@ class RBACAuthorizationStage(BaseSecurityStage):
             threat_score=0.0,
             sanitized_payload=container.parsed_payload,
             audit_notes=audit_notes,
-            execution_time_ms=round(latency, 2)
+            execution_time_ms=round(latency, 2),
         )
