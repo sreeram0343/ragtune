@@ -4,14 +4,15 @@ Prevents Cache Stampedes (Thundering Herd) by executing duplicate concurrent req
 """
 
 import threading
-from typing import Callable, Any, Dict, Optional
+from collections.abc import Callable
+from typing import Any
 
 
 class SingleFlightCall:
     def __init__(self):
         self.event = threading.Event()
         self.result: Any = None
-        self.exception: Optional[Exception] = None
+        self.exception: Exception | None = None
 
 
 class SingleFlightLock:
@@ -19,9 +20,10 @@ class SingleFlightLock:
     Coalesces concurrent identical function calls under the same key.
     Ensures expensive LLM/SQL computations execute once per cache miss.
     """
+
     def __init__(self):
         self._lock = threading.Lock()
-        self._calls: Dict[str, SingleFlightCall] = {}
+        self._calls: dict[str, SingleFlightCall] = {}
 
     def execute(self, key: str, fn: Callable[[], Any]) -> Any:
         """
