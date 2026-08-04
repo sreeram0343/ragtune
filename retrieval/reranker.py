@@ -4,7 +4,8 @@ Re-ranks hybrid search candidates using feature-based relevance scoring.
 """
 
 import re
-from typing import List, Dict, Any
+from typing import Any
+
 from config.settings import settings
 
 
@@ -12,7 +13,9 @@ class CrossEncoderReranker:
     def __init__(self):
         pass
 
-    def _calculate_cross_relevance_score(self, query: str, content: str, title: str) -> float:
+    def _calculate_cross_relevance_score(
+        self, query: str, content: str, title: str
+    ) -> float:
         """
         Calculates cross-feature relevance score between query and document text.
         """
@@ -39,8 +42,11 @@ class CrossEncoderReranker:
         return float(min(1.0, total_score))
 
     def rerank(
-        self, query: str, candidates: List[Dict[str, Any]], top_k: int = settings.TOP_K_RERANK
-    ) -> List[Dict[str, Any]]:
+        self,
+        query: str,
+        candidates: list[dict[str, Any]],
+        top_k: int = settings.TOP_K_RERANK,
+    ) -> list[dict[str, Any]]:
         """
         Re-ranks top candidates and returns sorted top_k evidence items.
         """
