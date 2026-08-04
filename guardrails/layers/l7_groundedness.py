@@ -3,31 +3,47 @@ RAGTUNE - Guardrail Layer 7: Hallucination & Groundedness Citation Verifier
 Verifies response factual alignment and citation grounding against source evidence.
 """
 
-from typing import Tuple, List, Dict
 import re
 
 
 class GroundednessGuard:
     def evaluate_groundedness(
-        self, response: str, evidence_chunks: List[str], threshold: float = 0.6
-    ) -> Tuple[bool, float, str, Dict[str, float]]:
+        self, response: str, evidence_chunks: list[str], threshold: float = 0.6
+    ) -> tuple[bool, float, str, dict[str, float]]:
         """
         Evaluates factual groundedness of response against retrieved evidence chunks.
         Returns: (is_grounded: bool, score: float, details: str, metrics: dict)
         """
         if not response or not response.strip():
-            return True, 1.0, "Empty response", {"citation_overlap": 1.0, "sentence_groundedness": 1.0}
+            return (
+                True,
+                1.0,
+                "Empty response",
+                {"citation_overlap": 1.0, "sentence_groundedness": 1.0},
+            )
 
         if not evidence_chunks:
             # If query required no evidence chunks (e.g., system metadata/status), return default pass with low confidence
-            return True, 0.7, "No external evidence chunks provided to evaluate against", {"citation_overlap": 0.7, "sentence_groundedness": 0.7}
+            return (
+                True,
+                0.7,
+                "No external evidence chunks provided to evaluate against",
+                {"citation_overlap": 0.7, "sentence_groundedness": 0.7},
+            )
 
         evidence_text = " ".join(evidence_chunks).lower()
         evidence_words = set(re.findall(r"\w+", evidence_text))
 
-        sentences = [s.strip() for s in re.split(r"[.!?]", response) if len(s.strip()) > 10]
+        sentences = [
+            s.strip() for s in re.split(r"[.!?]", response) if len(s.strip()) > 10
+        ]
         if not sentences:
-            return True, 1.0, "Short response auto-grounded", {"citation_overlap": 1.0, "sentence_groundedness": 1.0}
+            return (
+                True,
+                1.0,
+                "Short response auto-grounded",
+                {"citation_overlap": 1.0, "sentence_groundedness": 1.0},
+            )
 
         grounded_sentences = 0
         sentence_scores = []
@@ -47,7 +63,9 @@ class GroundednessGuard:
             if score >= 0.3:
                 grounded_sentences += 1
 
-        overall_score = sum(sentence_scores) / len(sentence_scores) if sentence_scores else 1.0
+        overall_score = (
+            sum(sentence_scores) / len(sentence_scores) if sentence_scores else 1.0
+        )
         sentence_grounded_ratio = grounded_sentences / len(sentences)
 
         final_groundedness = (overall_score * 0.6) + (sentence_grounded_ratio * 0.4)
@@ -65,6 +83,6 @@ class GroundednessGuard:
             {
                 "citation_overlap": float(overall_score),
                 "sentence_groundedness": float(sentence_grounded_ratio),
-                "final_score": float(final_groundedness)
-            }
+                "final_score": float(final_groundedness),
+            },
         )
