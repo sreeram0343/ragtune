@@ -4,12 +4,17 @@ Intercepts all inbound HTTP requests and enforces the 8-stage input security pip
 """
 
 import json
+
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import JSONResponse
+
 from auth.storage.auth_db import AuthDatabaseRepository
-from input_security.framework.stage import SecurityRequestContainer, SecurityViolationException
 from input_security.framework.pipeline import InputSecurityPipeline
+from input_security.framework.stage import (
+    SecurityRequestContainer,
+    SecurityViolationException,
+)
 
 # Global pipeline instance
 auth_db = AuthDatabaseRepository()
@@ -17,7 +22,9 @@ security_pipeline = InputSecurityPipeline(auth_db)
 
 
 class InputSecurityMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
         # Read raw request body
         raw_body = await request.body()
         client_ip = request.client.host if request.client else None
@@ -41,7 +48,7 @@ class InputSecurityMiddleware(BaseHTTPMiddleware):
             path=request.url.path,
             method=request.method,
             parsed_payload=parsed_payload,
-            user_query=user_query
+            user_query=user_query,
         )
 
         try:
@@ -55,12 +62,14 @@ class InputSecurityMiddleware(BaseHTTPMiddleware):
                     "error": "SecurityViolation",
                     "stage": e.stage_name,
                     "message": e.message,
-                    "risk_score": e.risk_score
-                }
+                    "risk_score": e.risk_score,
+                },
             )
 
         response = await call_next(request)
         response.headers["X-RAGTUNE-Security-Request-ID"] = enriched_request.request_id
         response.headers["X-RAGTUNE-Trust-Level"] = enriched_request.trust_level.value
-        response.headers["X-RAGTUNE-Threat-Risk-Score"] = str(enriched_request.cumulative_risk_score)
+        response.headers["X-RAGTUNE-Threat-Risk-Score"] = str(
+            enriched_request.cumulative_risk_score
+        )
         return response
