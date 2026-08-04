@@ -3,17 +3,18 @@ RAGTUNE Enterprise Identity & Access Management - JWT Handler
 Generates, signs, decodes, and validates JWT Access Tokens.
 """
 
-import json
 import base64
-import hmac
 import hashlib
+import hmac
+import json
 import time
-from typing import Dict, Any, Optional, Tuple
+from typing import Any
+
 from config.settings import settings
 
 
 class JWTHandler:
-    def __init__(self, secret_key: Optional[str] = None):
+    def __init__(self, secret_key: str | None = None):
         self.secret_key = (secret_key or settings.SECRET_KEY).encode("utf-8")
         self.issuer = "ragtune-iam"
         self.audience = "ragtune-api"
@@ -30,11 +31,11 @@ class JWTHandler:
         user_id: str,
         email: str,
         session_id: str,
-        org_id: Optional[str] = None,
-        org_role: Optional[str] = None,
-        workspace_id: Optional[str] = None,
-        workspace_role: Optional[str] = None,
-        expires_delta_seconds: int = 900  # 15 minutes default
+        org_id: str | None = None,
+        org_role: str | None = None,
+        workspace_id: str | None = None,
+        workspace_role: str | None = None,
+        expires_delta_seconds: int = 900,  # 15 minutes default
     ) -> str:
         """
         Creates a signed JWT Access Token with security claims.
@@ -53,19 +54,21 @@ class JWTHandler:
             "ws_role": workspace_role,
             "iat": now,
             "nbf": now,
-            "exp": now + expires_delta_seconds
+            "exp": now + expires_delta_seconds,
         }
 
         encoded_header = self._base64url_encode(json.dumps(header).encode("utf-8"))
         encoded_payload = self._base64url_encode(json.dumps(payload).encode("utf-8"))
-        signing_input = f"{encoded_header}.{encoded_payload}".encode("utf-8")
+        signing_input = f"{encoded_header}.{encoded_payload}".encode()
 
         signature = hmac.new(self.secret_key, signing_input, hashlib.sha256).digest()
         encoded_signature = self._base64url_encode(signature)
 
         return f"{encoded_header}.{encoded_payload}.{encoded_signature}"
 
-    def decode_access_token(self, token: str) -> Tuple[bool, Optional[Dict[str, Any]], str]:
+    def decode_access_token(
+        self, token: str
+    ) -> tuple[bool, dict[str, Any] | None, str]:
         """
         Decodes, verifies signature, and checks expiration of JWT Access Token.
         Returns: (is_valid: bool, claims: dict, error_message: str)
@@ -75,10 +78,16 @@ class JWTHandler:
 
         try:
             parts = token.split(".")
-            encoded_header, encoded_payload, encoded_signature = parts[0], parts[1], parts[2]
+            encoded_header, encoded_payload, encoded_signature = (
+                parts[0],
+                parts[1],
+                parts[2],
+            )
 
-            signing_input = f"{encoded_header}.{encoded_payload}".encode("utf-8")
-            expected_sig = hmac.new(self.secret_key, signing_input, hashlib.sha256).digest()
+            signing_input = f"{encoded_header}.{encoded_payload}".encode()
+            expected_sig = hmac.new(
+                self.secret_key, signing_input, hashlib.sha256
+            ).digest()
             actual_sig = self._base64url_decode(encoded_signature)
 
             if not hmac.compare_digest(expected_sig, actual_sig):
@@ -96,4 +105,4 @@ class JWTHandler:
 
             return True, payload, "Token is valid"
         except Exception as e:
-            return False, None, f"Token decode error: {str(e)}"
+            return False, None, f"Token decode error: {e!s}"
