@@ -3,17 +3,23 @@ RAGTUNE - Guardrail Layer 8: Toxicity, Bias & Harm Safety Filter
 Evaluates generated content for toxic phrases, hate speech, and safety violations.
 """
 
-from typing import Tuple
-
 
 TOXIC_TERMS = [
-    "hate", "slur", "discriminate", "violence", "threaten",
-    "illegal act", "malware", "exploit", "hack", "bypass security"
+    "hate",
+    "slur",
+    "discriminate",
+    "violence",
+    "threaten",
+    "illegal act",
+    "malware",
+    "exploit",
+    "hack",
+    "bypass security",
 ]
 
 
 class ToxicitySafetyGuard:
-    def evaluate(self, content: str) -> Tuple[bool, float, str]:
+    def evaluate(self, content: str) -> tuple[bool, float, str]:
         """
         Evaluates output content for toxicity or safety violations.
         Returns: (is_safe: bool, score: float, details: str)
@@ -32,7 +38,7 @@ class ToxicitySafetyGuard:
             return (
                 False,
                 0.1,
-                f"Toxicity/Safety violation detected. Content contained flagged terminology: {', '.join(flagged)}"
+                f"Toxicity/Safety violation detected. Content contained flagged terminology: {', '.join(flagged)}",
             )
 
         return True, 1.0, "Toxicity and safety evaluation passed clean"
