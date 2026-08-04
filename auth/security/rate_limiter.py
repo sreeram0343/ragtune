@@ -4,7 +4,6 @@ Tracks login failure velocity, exponential backoff, and account lockout threshol
 """
 
 import time
-from typing import Dict, Tuple, Optional
 
 MAX_FAILED_ATTEMPTS = 5
 LOCKOUT_DURATION_SECONDS = 900  # 15 minutes
@@ -13,9 +12,11 @@ LOCKOUT_DURATION_SECONDS = 900  # 15 minutes
 class RateLimiterService:
     def __init__(self):
         # In-memory IP velocity tracker: {ip_address: [timestamp1, timestamp2]}
-        self._ip_attempts: Dict[str, list] = {}
+        self._ip_attempts: dict[str, list] = {}
 
-    def is_ip_rate_limited(self, ip_address: str, max_requests: int = 30, window_seconds: int = 60) -> bool:
+    def is_ip_rate_limited(
+        self, ip_address: str, max_requests: int = 30, window_seconds: int = 60
+    ) -> bool:
         """
         Verifies if IP address exceeds velocity limit within window_seconds.
         """
@@ -31,7 +32,9 @@ class RateLimiterService:
 
         return len(timestamps) > max_requests
 
-    def calculate_lockout(self, current_failed_count: int) -> Tuple[bool, Optional[float]]:
+    def calculate_lockout(
+        self, current_failed_count: int
+    ) -> tuple[bool, float | None]:
         """
         Determines if account should be locked based on failed attempt count.
         Returns: (should_lock: bool, lockout_until_timestamp: float)
