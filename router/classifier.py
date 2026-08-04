@@ -4,23 +4,57 @@ Analyzes natural language queries and context to determine intent categories and
 """
 
 import re
-from typing import Tuple
+
 from router.domain import IntentCategory
 
-SQL_KEYWORDS = [r"\bselect\b", r"\bsales\b", r"\brevenue\b", r"\btotal\b", r"\bcount\b", r"\bavg\b", r"\bmax\b", r"\bmin\b", r"\btable\b", r"\bdatabase\b", r"\bquarter\b"]
-RAG_KEYWORDS = [r"\bpolicy\b", r"\bclause\b", r"\bdocument\b", r"\bcontract\b", r"\bagreement\b", r"\bterms\b", r"\bper\s+diem\b", r"\bsla\b", r"\buptime\b"]
-SUMMARIZE_KEYWORDS = [r"\bsummarize\b", r"\bsummary\b", r"\boverview\b", r"\bkey\s+takeaways\b"]
-POLICY_KEYWORDS = [r"\bcompliance\b", r"\bsecurity\s+policy\b", r"\bguidelines\b", r"\brule\b"]
+SQL_KEYWORDS = [
+    r"\bselect\b",
+    r"\bsales\b",
+    r"\brevenue\b",
+    r"\btotal\b",
+    r"\bcount\b",
+    r"\bavg\b",
+    r"\bmax\b",
+    r"\bmin\b",
+    r"\btable\b",
+    r"\bdatabase\b",
+    r"\bquarter\b",
+]
+RAG_KEYWORDS = [
+    r"\bpolicy\b",
+    r"\bclause\b",
+    r"\bdocument\b",
+    r"\bcontract\b",
+    r"\bagreement\b",
+    r"\bterms\b",
+    r"\bper\s+diem\b",
+    r"\bsla\b",
+    r"\buptime\b",
+]
+SUMMARIZE_KEYWORDS = [
+    r"\bsummarize\b",
+    r"\bsummary\b",
+    r"\boverview\b",
+    r"\bkey\s+takeaways\b",
+]
+POLICY_KEYWORDS = [
+    r"\bcompliance\b",
+    r"\bsecurity\s+policy\b",
+    r"\bguidelines\b",
+    r"\brule\b",
+]
 
 
 class IntentClassifier:
     def __init__(self):
         self.sql_regexes = [re.compile(p, re.IGNORECASE) for p in SQL_KEYWORDS]
         self.rag_regexes = [re.compile(p, re.IGNORECASE) for p in RAG_KEYWORDS]
-        self.summarize_regexes = [re.compile(p, re.IGNORECASE) for p in SUMMARIZE_KEYWORDS]
+        self.summarize_regexes = [
+            re.compile(p, re.IGNORECASE) for p in SUMMARIZE_KEYWORDS
+        ]
         self.policy_regexes = [re.compile(p, re.IGNORECASE) for p in POLICY_KEYWORDS]
 
-    def classify(self, query_text: str) -> Tuple[IntentCategory, float]:
+    def classify(self, query_text: str) -> tuple[IntentCategory, float]:
         """
         Classifies query into IntentCategory and returns (category, confidence_score).
         """
