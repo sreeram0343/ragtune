@@ -6,8 +6,14 @@ Validates request body size (2MB max), JSON structure, and path traversal threat
 import json
 import re
 import time
-from typing import Dict, Any
-from input_security.framework.stage import BaseSecurityStage, StageResult, SecurityRequestContainer, SecurityViolationException
+from typing import Any
+
+from input_security.framework.stage import (
+    BaseSecurityStage,
+    SecurityRequestContainer,
+    SecurityViolationException,
+    StageResult,
+)
 
 MAX_PAYLOAD_BYTES = 2 * 1024 * 1024  # 2MB
 PATH_TRAVERSAL_PATTERNS = [
@@ -22,7 +28,9 @@ PATH_TRAVERSAL_PATTERNS = [
 class PayloadValidationStage(BaseSecurityStage):
     def __init__(self):
         super().__init__(stage_id=1, stage_name="Payload & Schema Validation")
-        self.traversal_regexes = [re.compile(p, re.IGNORECASE) for p in PATH_TRAVERSAL_PATTERNS]
+        self.traversal_regexes = [
+            re.compile(p, re.IGNORECASE) for p in PATH_TRAVERSAL_PATTERNS
+        ]
 
     def process(self, container: SecurityRequestContainer) -> StageResult:
         t0 = time.time()
@@ -36,22 +44,22 @@ class PayloadValidationStage(BaseSecurityStage):
                 message=f"Payload size ({raw_len} bytes) exceeds maximum permitted limit ({MAX_PAYLOAD_BYTES} bytes)",
                 status_code=413,
                 stage_name=self.stage_name,
-                risk_score=100.0
+                risk_score=100.0,
             )
 
         audit_notes.append(f"Payload size OK ({raw_len} bytes)")
 
         # 2. JSON Structure Parsing (if non-empty body)
-        parsed_data: Dict[str, Any] = dict(container.parsed_payload)
+        parsed_data: dict[str, Any] = dict(container.parsed_payload)
         if container.raw_body and not parsed_data:
             try:
                 parsed_data = json.loads(container.raw_body.decode("utf-8"))
             except Exception as e:
                 raise SecurityViolationException(
-                    message=f"Malformed JSON payload: {str(e)}",
+                    message=f"Malformed JSON payload: {e!s}",
                     status_code=400,
                     stage_name=self.stage_name,
-                    risk_score=90.0
+                    risk_score=90.0,
                 )
 
         # 3. Path Traversal Threat Inspection
@@ -60,14 +68,16 @@ class PayloadValidationStage(BaseSecurityStage):
             match = regex.search(payload_str)
             if match:
                 threat_score += 40.0
-                audit_notes.append(f"Path traversal sequence detected: '{match.group(0)}'")
+                audit_notes.append(
+                    f"Path traversal sequence detected: '{match.group(0)}'"
+                )
 
         if threat_score >= 80.0:
             raise SecurityViolationException(
                 message="Critical path traversal attempt detected in payload",
                 status_code=400,
                 stage_name=self.stage_name,
-                risk_score=threat_score
+                risk_score=threat_score,
             )
 
         latency = (time.time() - t0) * 1000
@@ -78,5 +88,5 @@ class PayloadValidationStage(BaseSecurityStage):
             threat_score=threat_score,
             sanitized_payload=parsed_data,
             audit_notes=audit_notes,
-            execution_time_ms=round(latency, 2)
+            execution_time_ms=round(latency, 2),
         )
