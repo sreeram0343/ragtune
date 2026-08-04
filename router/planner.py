@@ -4,17 +4,17 @@ Transforms enriched security requests into optimized, structured ExecutionPlan o
 """
 
 import uuid
-from typing import Optional, Dict, Any
+
 from input_security.framework.stage import EnrichedSecurityRequest
-from router.domain import IntentCategory, PlanningStrategy
-from router.registry import CapabilityRegistry
 from router.classifier import IntentClassifier
 from router.decision import IntentDecisionEngine
+from router.domain import IntentCategory, PlanningStrategy
 from router.plan import ExecutionPlan, ExecutionStage, ExecutionTask
+from router.registry import CapabilityRegistry
 
 
 class QueryPlanner:
-    def __init__(self, registry: Optional[CapabilityRegistry] = None):
+    def __init__(self, registry: CapabilityRegistry | None = None):
         self.registry = registry if registry else CapabilityRegistry()
         self.classifier = IntentClassifier()
         self.decision_engine = IntentDecisionEngine(self.registry)
@@ -22,7 +22,7 @@ class QueryPlanner:
     def create_execution_plan(
         self,
         security_request: EnrichedSecurityRequest,
-        preferred_strategy: PlanningStrategy = PlanningStrategy.BALANCED
+        preferred_strategy: PlanningStrategy = PlanningStrategy.BALANCED,
     ) -> ExecutionPlan:
         """
         Main query planning API:
@@ -37,13 +37,11 @@ class QueryPlanner:
 
         # 2. Select Capabilities via Decision Engine
         selected_caps = self.decision_engine.select_capabilities_for_intent(
-            intent=intent,
-            strategy=preferred_strategy,
-            security_context=sec_ctx
+            intent=intent, strategy=preferred_strategy, security_context=sec_ctx
         )
 
         # 3. Construct Execution Stages & Tasks
-        stages: List[ExecutionStage] = []
+        stages: list[ExecutionStage] = []
         total_cost = 0.0
         total_latency = 0.0
 
@@ -57,19 +55,20 @@ class QueryPlanner:
                     capability_id=cap.capability_id,
                     name=cap.name,
                     est_cost_usd=cap.cost_per_call,
-                    est_latency_ms=cap.est_latency_ms
+                    est_latency_ms=cap.est_latency_ms,
                 )
                 parallel_tasks.append(task)
                 total_cost += cap.cost_per_call
-                if cap.est_latency_ms > max_parallel_latency:
-                    max_parallel_latency = cap.est_latency_ms
+                max_parallel_latency = max(max_parallel_latency, cap.est_latency_ms)
 
-            stages.append(ExecutionStage(
-                stage_id=1,
-                stage_name="Parallel Hybrid Data Retrieval & SQL Execution",
-                tasks=parallel_tasks,
-                parallel_execution=True
-            ))
+            stages.append(
+                ExecutionStage(
+                    stage_id=1,
+                    stage_name="Parallel Hybrid Data Retrieval & SQL Execution",
+                    tasks=parallel_tasks,
+                    parallel_execution=True,
+                )
+            )
             total_latency += max_parallel_latency
 
         else:
@@ -80,20 +79,23 @@ class QueryPlanner:
                     capability_id=cap.capability_id,
                     name=cap.name,
                     est_cost_usd=cap.cost_per_call,
-                    est_latency_ms=cap.est_latency_ms
+                    est_latency_ms=cap.est_latency_ms,
                 )
                 stage = ExecutionStage(
-                    stage_id=i+1,
+                    stage_id=i + 1,
                     stage_name=f"Stage {i+1}: {cap.name}",
                     tasks=[task],
                     parallel_execution=False,
-                    dependencies=[i] if i > 0 else []
+                    dependencies=[i] if i > 0 else [],
                 )
                 stages.append(stage)
                 total_cost += cap.cost_per_call
                 total_latency += cap.est_latency_ms
 
-        requires_hitl = security_request.cumulative_risk_score > 40.0 or "sensitive" in query_text.lower()
+        requires_hitl = (
+            security_request.cumulative_risk_score > 40.0
+            or "sensitive" in query_text.lower()
+        )
         risk_level = "HIGH" if requires_hitl else "LOW"
 
         explanation = (
@@ -112,5 +114,5 @@ class QueryPlanner:
             total_est_latency_ms=round(total_latency, 2),
             risk_level=risk_level,
             requires_hitl_approval=requires_hitl,
-            explanation=explanation
+            explanation=explanation,
         )
