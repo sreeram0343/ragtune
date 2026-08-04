@@ -4,15 +4,15 @@ Assembles state graph nodes into a cohesive multi-agent execution machine.
 """
 
 import time
-from typing import Dict, Any
-from agents.state import AgentState
+
 from agents.nodes import AgentNodeExecutors
-from text2sql.engine import Text2SQLEngine
-from retrieval.hybrid_search import HybridSearchEngine
-from retrieval.reranker import CrossEncoderReranker
+from agents.state import AgentState
 from guardrails.pipeline import GuardrailPipeline
 from hitl.manager import HITLManager
-from xai.tracer import XAITracer, XAITrace
+from retrieval.hybrid_search import HybridSearchEngine
+from retrieval.reranker import CrossEncoderReranker
+from text2sql.engine import Text2SQLEngine
+from xai.tracer import XAITracer
 
 
 class AgentOrchestrator:
@@ -23,7 +23,7 @@ class AgentOrchestrator:
         reranker: CrossEncoderReranker,
         guardrail_pipeline: GuardrailPipeline,
         hitl_manager: HITLManager,
-        xai_tracer: XAITracer
+        xai_tracer: XAITracer,
     ):
         self.executors = AgentNodeExecutors(
             text2sql_engine=text2sql_engine,
@@ -31,7 +31,7 @@ class AgentOrchestrator:
             reranker=reranker,
             guardrail_pipeline=guardrail_pipeline,
             hitl_manager=hitl_manager,
-            xai_tracer=xai_tracer
+            xai_tracer=xai_tracer,
         )
         self.tracer = xai_tracer
 
@@ -47,7 +47,11 @@ class AgentOrchestrator:
 
         # Step 1: Pre-Execution Guardrails
         state = self.executors.pre_guardrail_node(state)
-        if state.hitl_flagged and state.pre_guardrail_result and not state.pre_guardrail_result.pre_execution_passed:
+        if (
+            state.hitl_flagged
+            and state.pre_guardrail_result
+            and not state.pre_guardrail_result.pre_execution_passed
+        ):
             state.execution_time_ms = round((time.time() - start_time) * 1000, 2)
             return state
 
