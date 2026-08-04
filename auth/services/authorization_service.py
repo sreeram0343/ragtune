@@ -3,22 +3,27 @@ RAGTUNE Enterprise Identity & Access Management - Authorization & RBAC Evaluator
 Evaluates user role permissions across Organizations and Workspaces.
 """
 
-from typing import List, Set, Optional
-from auth.domain.permissions import (
-    OrgRole, WorkspaceRole, Permission,
-    ORG_ROLE_PERMISSIONS, WORKSPACE_ROLE_PERMISSIONS
-)
+
 from auth.domain.models import SecurityContext, UserStatus
+from auth.domain.permissions import (
+    ORG_ROLE_PERMISSIONS,
+    WORKSPACE_ROLE_PERMISSIONS,
+    OrgRole,
+    Permission,
+    WorkspaceRole,
+)
 
 
 class AuthorizationService:
     def get_effective_permissions(
-        self, org_role: Optional[OrgRole] = None, workspace_role: Optional[WorkspaceRole] = None
-    ) -> List[Permission]:
+        self,
+        org_role: OrgRole | None = None,
+        workspace_role: WorkspaceRole | None = None,
+    ) -> list[Permission]:
         """
         Calculates union set of effective permissions granted by Org Role and Workspace Role.
         """
-        perms: Set[Permission] = set()
+        perms: set[Permission] = set()
 
         if org_role and org_role in ORG_ROLE_PERMISSIONS:
             perms.update(ORG_ROLE_PERMISSIONS[org_role])
