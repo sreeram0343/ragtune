@@ -3,12 +3,12 @@ RAGTUNE Intent Router & Query Planning Engine - Core Domain Models
 Defines intent categories, planning strategies, capability types, and metadata schemas.
 """
 
-from enum import Enum
-from typing import List, Optional, Dict, Any
+from enum import StrEnum
+
 from pydantic import BaseModel, Field
 
 
-class IntentCategory(str, Enum):
+class IntentCategory(StrEnum):
     STRUCTURED_SQL = "STRUCTURED_SQL"
     UNSTRUCTURED_RAG = "UNSTRUCTURED_RAG"
     HYBRID_ANALYTICS = "HYBRID_ANALYTICS"
@@ -19,14 +19,14 @@ class IntentCategory(str, Enum):
     UNKNOWN = "UNKNOWN"
 
 
-class PlanningStrategy(str, Enum):
+class PlanningStrategy(StrEnum):
     LOW_LATENCY = "LOW_LATENCY"
     BALANCED = "BALANCED"
     MAX_ACCURACY = "MAX_ACCURACY"
     COST_MINIMIZED = "COST_MINIMIZED"
 
 
-class CapabilityType(str, Enum):
+class CapabilityType(StrEnum):
     RETRIEVAL_VECTOR = "RETRIEVAL_VECTOR"
     RETRIEVAL_BM25 = "RETRIEVAL_BM25"
     TEXT_TO_SQL = "TEXT_TO_SQL"
@@ -42,6 +42,6 @@ class CapabilityMetadata(BaseModel):
     type: CapabilityType
     cost_per_call: float = 0.001  # USD
     est_latency_ms: float = 150.0  # milliseconds
-    required_permissions: List[str] = Field(default_factory=list)
+    required_permissions: list[str] = Field(default_factory=list)
     description: str = ""
     enabled: bool = True
