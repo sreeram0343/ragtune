@@ -3,16 +3,13 @@ RAGTUNE - Configuration and Settings Module
 Enterprise-grade platform configuration management.
 """
 
-from typing import List, Optional
-from pydantic import Field
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore"
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
 
     # Core Application Settings
@@ -41,21 +38,29 @@ class Settings(BaseSettings):
     MAX_INPUT_LENGTH: int = 2000
     GROUNDEDNESS_THRESHOLD: float = 0.65
     PII_MASK_CHAR: str = "*"
-    DENIED_SQL_KEYWORDS: List[str] = [
-        "DROP", "DELETE", "TRUNCATE", "ALTER", "INSERT", 
-        "UPDATE", "GRANT", "REVOKE", "EXEC", "EXECUTE"
+    DENIED_SQL_KEYWORDS: list[str] = [
+        "DROP",
+        "DELETE",
+        "TRUNCATE",
+        "ALTER",
+        "INSERT",
+        "UPDATE",
+        "GRANT",
+        "REVOKE",
+        "EXEC",
+        "EXECUTE",
     ]
-    DENIED_PROMPT_PATTERNS: List[str] = [
+    DENIED_PROMPT_PATTERNS: list[str] = [
         "ignore previous instructions",
         "system prompt",
         "override safety",
         "bypass security",
         "jailbreak",
-        "act as DAN"
+        "act as DAN",
     ]
 
     # Caching Layer Settings
-    REDIS_URL: Optional[str] = "redis://localhost:6379/0"
+    REDIS_URL: str | None = "redis://localhost:6379/0"
     ENABLE_CACHE: bool = True
     CACHE_TTL_SECONDS: int = 3600
     SEMANTIC_CACHE_THRESHOLD: float = 0.92
@@ -67,7 +72,7 @@ class Settings(BaseSettings):
     # Security & Role-Based Access Control
     DEFAULT_TENANT_ID: str = "tenant_enterprise_default"
     DEFAULT_USER_ROLE: str = "ANALYST"
-    ALLOWED_ROLES: List[str] = ["ADMIN", "ANALYST", "AUDITOR", "VIEWER"]
+    ALLOWED_ROLES: list[str] = ["ADMIN", "ANALYST", "AUDITOR", "VIEWER"]
 
 
 # Global instance
