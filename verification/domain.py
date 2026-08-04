@@ -3,12 +3,12 @@ RAGTUNE Enterprise Verification & Quality Assurance Engine - Domain Models
 Defines verification claims, reflection tokens, quality metrics, decision actions, and quality reports.
 """
 
-from enum import Enum
-from typing import List, Dict, Any, Optional
+from enum import StrEnum
+
 from pydantic import BaseModel, Field
 
 
-class VerificationAction(str, Enum):
+class VerificationAction(StrEnum):
     APPROVE = "APPROVE"
     APPROVE_WITH_WARNING = "APPROVE_WITH_WARNING"
     REGENERATE = "REGENERATE"
@@ -21,7 +21,7 @@ class VerificationClaim(BaseModel):
     claim_id: str
     statement_text: str
     is_grounded: bool = True
-    supporting_citation_id: Optional[str] = None
+    supporting_citation_id: str | None = None
     confidence: float = 1.0
 
 
@@ -47,7 +47,7 @@ class QualityReport(BaseModel):
     response_narrative: str
     action: VerificationAction = VerificationAction.APPROVE
     quality_score: float = 1.0
-    claims: List[VerificationClaim] = Field(default_factory=list)
-    reflection_tokens: List[ReflectionToken] = Field(default_factory=list)
+    claims: list[VerificationClaim] = Field(default_factory=list)
+    reflection_tokens: list[ReflectionToken] = Field(default_factory=list)
     metrics: QualityMetrics = Field(default_factory=QualityMetrics)
     explanation: str = ""
