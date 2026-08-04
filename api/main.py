@@ -6,36 +6,43 @@ Exposes enterprise endpoints for intelligence queries, IAM, ingestion, HITL hub,
 import csv
 import io
 import json
+from contextlib import asynccontextmanager
 import os
 import time
-from typing import Dict, Any, List, Optional
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, FileResponse
 
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
+
+from agents.graph import AgentOrchestrator
+from agents.state import AgentState
+from api.schemas import (
+    DocumentDeleteResponse,
+    DocumentItem,
+    DocumentListResponse,
+    ExportRequest,
+    ExportResponse,
+    HITLActionRequest,
+    HITLActionResponse,
+    IngestResponse,
+    IngestTextRequest,
+    QueryRequest,
+    QueryResponse,
+)
+from auth.api.routes import router as auth_router
+from cache.redis_client import EnterpriseCacheManager
 from config.settings import settings
-from security.rbac import get_default_user_context, UserContext
+from guardrails.pipeline import GuardrailPipeline
+from hitl.manager import HITLManager
+from retrieval.hybrid_search import HybridSearchEngine
+from retrieval.reranker import CrossEncoderReranker
+from security.rbac import get_default_user_context
 from storage.db_connector import DBConnector
 from storage.document_processor import DocumentProcessor
 from storage.vector_store import HybridVectorStore
-from retrieval.hybrid_search import HybridSearchEngine
-from retrieval.reranker import CrossEncoderReranker
 from text2sql.engine import Text2SQLEngine
-from guardrails.pipeline import GuardrailPipeline
-from cache.redis_client import EnterpriseCacheManager
-from hitl.manager import HITLManager
 from xai.tracer import XAITracer
-from agents.state import AgentState
-from agents.graph import AgentOrchestrator
-from api.schemas import (
-    QueryRequest, QueryResponse,
-    IngestTextRequest, IngestResponse,
-    HITLActionRequest, HITLActionResponse,
-    DocumentListResponse, DocumentDeleteResponse, DocumentItem,
-    ExportRequest, ExportResponse
-)
-from auth.api.routes import router as auth_router
 
 # Initialize Core Services
 db_connector = DBConnector()
@@ -55,10 +62,8 @@ orchestrator = AgentOrchestrator(
     reranker=reranker,
     guardrail_pipeline=guardrail_pipeline,
     hitl_manager=hitl_manager,
-    xai_tracer=xai_tracer
+    xai_tracer=xai_tracer,
 )
-
-from contextlib import asynccontextmanager
 
 
 @asynccontextmanager
@@ -81,7 +86,7 @@ app = FastAPI(
     title=settings.APP_NAME,
     version=settings.VERSION,
     description="Enterprise Knowledge Intelligence Platform combining Identity & Access Management, RAG, Text-to-SQL, 9-Layer Guardrails, and Explainable AI.",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Enable CORS for modern web clients
@@ -106,7 +111,7 @@ def health_check():
         "platform": settings.APP_NAME,
         "version": settings.VERSION,
         "cache_mode": cache_manager.get_stats()["mode"],
-        "indexed_documents_chunks": len(vector_store.chunks)
+        "indexed_documents_chunks": len(vector_store.chunks),
     }
 
 
@@ -117,7 +122,7 @@ def get_analytics():
         "status": "ACTIVE",
         "cache_stats": cache_manager.get_stats(),
         "vector_chunks": len(vector_store.chunks),
-        "hitl_pending": len(hitl_manager.list_pending_tickets())
+        "hitl_pending": len(hitl_manager.list_pending_tickets()),
     }
 
 
@@ -127,7 +132,7 @@ def get_metrics():
     return {
         "ragtune_health_status": 1,
         "ragtune_vector_chunks_total": len(vector_store.chunks),
-        "ragtune_hitl_pending_tickets": len(hitl_manager.list_pending_tickets())
+        "ragtune_hitl_pending_tickets": len(hitl_manager.list_pending_tickets()),
     }
 
 
@@ -136,8 +141,10 @@ def process_query(payload: QueryRequest):
     """
     Submits query to RAGTUNE agentic intelligence engine.
     """
-    t0 = time.time()
-    user_context = get_default_user_context(payload.role or "ANALYST", payload.tenant_id or "tenant_enterprise_default")
+    time.time()
+    user_context = get_default_user_context(
+        payload.role or "ANALYST", payload.tenant_id or "tenant_enterprise_default"
+    )
 
     # Check Cache unless bypassed
     cache_key = f"query:{payload.role}:{hash(payload.query)}"
@@ -148,10 +155,7 @@ def process_query(payload: QueryRequest):
             return QueryResponse(**cached)
 
     # Initialize Agent State
-    state = AgentState(
-        user_query=payload.query,
-        user_context=user_context
-    )
+    state = AgentState(user_query=payload.query, user_context=user_context)
 
     # Execute Multi-Agent Workflow Graph
     final_state = orchestrator.execute_workflow(state)
@@ -159,13 +163,22 @@ def process_query(payload: QueryRequest):
     # Prepare Response Data
     guardrail_matrix = []
     if final_state.post_guardrail_result:
-        guardrail_matrix = [ev.model_dump() for ev in final_state.post_guardrail_result.layer_evaluations]
+        guardrail_matrix = [
+            ev.model_dump()
+            for ev in final_state.post_guardrail_result.layer_evaluations
+        ]
     elif final_state.pre_guardrail_result:
-        guardrail_matrix = [ev.model_dump() for ev in final_state.pre_guardrail_result.layer_evaluations]
+        guardrail_matrix = [
+            ev.model_dump() for ev in final_state.pre_guardrail_result.layer_evaluations
+        ]
 
     # Ensure sql_columns is populated if sql_rows exist
     sql_cols = final_state.sql_columns
-    if not sql_cols and final_state.sql_rows and isinstance(final_state.sql_rows[0], dict):
+    if (
+        not sql_cols
+        and final_state.sql_rows
+        and isinstance(final_state.sql_rows[0], dict)
+    ):
         sql_cols = list(final_state.sql_rows[0].keys())
 
     response_data = QueryResponse(
@@ -183,7 +196,7 @@ def process_query(payload: QueryRequest):
         sql_columns=sql_cols,
         retrieved_chunks=final_state.retrieved_chunks,
         guardrail_matrix=guardrail_matrix,
-        trace_id=final_state.xai_trace.trace_id if final_state.xai_trace else None
+        trace_id=final_state.xai_trace.trace_id if final_state.xai_trace else None,
     )
 
     # Save to Cache if clean pass
@@ -201,7 +214,7 @@ def ingest_text(payload: IngestTextRequest):
         text=payload.text,
         doc_id=payload.doc_id or f"doc_{int(time.time())}",
         title=payload.title,
-        metadata=payload.metadata
+        metadata=payload.metadata,
     )
     vector_store.add_chunks(chunks)
     return IngestResponse(
@@ -209,12 +222,12 @@ def ingest_text(payload: IngestTextRequest):
         doc_id=payload.doc_id or "doc_auto",
         title=payload.title,
         chunks_created=len(chunks),
-        message=f"Successfully indexed {len(chunks)} semantic chunk(s) into hybrid retriever."
+        message=f"Successfully indexed {len(chunks)} semantic chunk(s) into hybrid retriever.",
     )
 
 
 @app.post("/api/v1/ingest/file", response_model=IngestResponse, tags=["Ingestion"])
-async def ingest_file(file: UploadFile = File(...), title: Optional[str] = Form(None)):
+async def ingest_file(file: UploadFile = File(...), title: str | None = Form(None)):
     """Ingests uploaded file (.md, .txt) into hybrid vector index."""
     if not file.filename:
         raise HTTPException(status_code=400, detail="Filename required")
@@ -227,7 +240,7 @@ async def ingest_file(file: UploadFile = File(...), title: Optional[str] = Form(
         text=content,
         doc_id=doc_id,
         title=doc_title,
-        metadata={"file_name": file.filename, "doc_id": doc_id, "title": doc_title}
+        metadata={"file_name": file.filename, "doc_id": doc_id, "title": doc_title},
     )
     vector_store.add_chunks(chunks)
     return IngestResponse(
@@ -235,7 +248,7 @@ async def ingest_file(file: UploadFile = File(...), title: Optional[str] = Form(
         doc_id=doc_id,
         title=doc_title,
         chunks_created=len(chunks),
-        message=f"Successfully uploaded and indexed '{file.filename}' into {len(chunks)} chunk(s)."
+        message=f"Successfully uploaded and indexed '{file.filename}' into {len(chunks)} chunk(s).",
     )
 
 
@@ -247,11 +260,15 @@ def list_documents():
     return DocumentListResponse(
         total_documents=len(items),
         total_chunks=len(vector_store.chunks),
-        documents=items
+        documents=items,
     )
 
 
-@app.delete("/api/v1/documents/{doc_id}", response_model=DocumentDeleteResponse, tags=["Ingestion"])
+@app.delete(
+    "/api/v1/documents/{doc_id}",
+    response_model=DocumentDeleteResponse,
+    tags=["Ingestion"],
+)
 def delete_document(doc_id: str):
     """Evicts document chunks by doc_id from hybrid vector store."""
     removed = vector_store.delete_document(doc_id)
@@ -261,11 +278,13 @@ def delete_document(doc_id: str):
         success=True,
         doc_id=doc_id,
         chunks_removed=removed,
-        message=f"Successfully deleted document '{doc_id}' and purged {removed} chunk(s)."
+        message=f"Successfully deleted document '{doc_id}' and purged {removed} chunk(s).",
     )
 
 
-@app.post("/api/v1/export/query", response_model=ExportResponse, tags=["Query Intelligence"])
+@app.post(
+    "/api/v1/export/query", response_model=ExportResponse, tags=["Query Intelligence"]
+)
 def export_query_result(payload: ExportRequest):
     """Exports Query Intelligence response as CSV or JSON report."""
     q_resp = payload.query_response
@@ -280,8 +299,24 @@ def export_query_result(payload: ExportRequest):
             for row in q_resp.sql_rows:
                 writer.writerow([row.get(c, "") for c in q_resp.sql_columns])
         else:
-            writer.writerow(["Query", "Intent Route", "Overall Confidence", "Execution Time (ms)", "Cache Hit"])
-            writer.writerow([q_resp.query, q_resp.intent_route, q_resp.overall_confidence, q_resp.execution_time_ms, q_resp.cache_hit])
+            writer.writerow(
+                [
+                    "Query",
+                    "Intent Route",
+                    "Overall Confidence",
+                    "Execution Time (ms)",
+                    "Cache Hit",
+                ]
+            )
+            writer.writerow(
+                [
+                    q_resp.query,
+                    q_resp.intent_route,
+                    q_resp.overall_confidence,
+                    q_resp.execution_time_ms,
+                    q_resp.cache_hit,
+                ]
+            )
             writer.writerow([])
             writer.writerow(["Response Narrative"])
             writer.writerow([q_resp.response])
@@ -291,7 +326,7 @@ def export_query_result(payload: ExportRequest):
             filename=f"ragtune_export_{int(time.time())}.csv",
             export_format="csv",
             content_type="text/csv",
-            content=csv_str
+            content=csv_str,
         )
     else:
         json_str = json.dumps(q_resp.model_dump(), indent=2)
@@ -299,7 +334,7 @@ def export_query_result(payload: ExportRequest):
             filename=f"ragtune_export_{int(time.time())}.json",
             export_format="json",
             content_type="application/json",
-            content=json_str
+            content=json_str,
         )
 
 
@@ -324,7 +359,7 @@ def resolve_hitl_ticket(payload: HITLActionRequest):
         action=payload.action,
         operator_id=payload.operator_id,
         operator_notes=payload.operator_notes,
-        modified_data={"sql": payload.modified_sql} if payload.modified_sql else None
+        modified_data={"sql": payload.modified_sql} if payload.modified_sql else None,
     )
     if not success:
         raise HTTPException(status_code=400, detail=msg)
@@ -332,7 +367,7 @@ def resolve_hitl_ticket(payload: HITLActionRequest):
         success=True,
         message=msg,
         ticket_id=payload.ticket_id,
-        status=item.status if item else "RESOLVED"
+        status=item.status if item else "RESOLVED",
     )
 
 
@@ -367,6 +402,6 @@ if os.path.exists("frontend"):
     def serve_frontend():
         index_path = os.path.join("frontend", "index.html")
         if os.path.exists(index_path):
-            with open(index_path, "r", encoding="utf-8") as f:
+            with open(index_path, encoding="utf-8") as f:
                 return f.read()
         return "<h1>RAGTUNE Enterprise API Server Running</h1>"
