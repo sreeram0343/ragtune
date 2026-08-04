@@ -4,7 +4,7 @@ Detects invented facts, numerical discrepancies, cross-source contradictions, an
 """
 
 import re
-from typing import List, Tuple
+
 from verification.domain import VerificationClaim
 
 
@@ -12,20 +12,22 @@ class HallucinationDetector:
     def detect_hallucination_risk(
         self,
         response_narrative: str,
-        source_contexts: List[str],
-        claims: List[VerificationClaim]
-    ) -> Tuple[float, List[str]]:
+        source_contexts: list[str],
+        claims: list[VerificationClaim],
+    ) -> tuple[float, list[str]]:
         """
         Scans response narrative and claims for hallucination risk and numerical discrepancies.
         Returns (hallucination_risk_score, list_of_detected_issues).
         """
-        issues: List[str] = []
+        issues: list[str] = []
         context_blob = " ".join(source_contexts).lower() if source_contexts else ""
 
         # 1. Claim Grounding Risk
         ungrounded_claims = [c for c in claims if not c.is_grounded]
         if ungrounded_claims:
-            issues.append(f"Detected {len(ungrounded_claims)} ungrounded claim(s) lacking evidence support.")
+            issues.append(
+                f"Detected {len(ungrounded_claims)} ungrounded claim(s) lacking evidence support."
+            )
 
         # 2. Numerical Discrepancy Check
         resp_numbers = set(re.findall(r"\b\d+(?:\.\d+)?\b", response_narrative))
@@ -36,7 +38,9 @@ class HallucinationDetector:
         unsupported_numbers = {n for n in unsupported_numbers if float(n) > 5}
 
         if unsupported_numbers:
-            issues.append(f"Numerical discrepancy detected: Number(s) {unsupported_numbers} do not match source evidence.")
+            issues.append(
+                f"Numerical discrepancy detected: Number(s) {unsupported_numbers} do not match source evidence."
+            )
 
         # 3. Calculate Composite Hallucination Risk Score
         risk_score = 0.0
