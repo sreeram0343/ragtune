@@ -4,13 +4,14 @@ RAGTUNE - Enterprise Load & Performance Benchmark Suite
 Simulates concurrent user queries against FastAPI gateway and evaluates response latency, throughput, and error rates.
 """
 
-import time
 import argparse
 import concurrent.futures
-import urllib.request
-import urllib.parse
 import json
 import statistics
+import time
+import urllib.parse
+import urllib.request
+
 
 def send_query_request(target_url: str, query: str) -> float:
     start_time = time.time()
@@ -18,7 +19,7 @@ def send_query_request(target_url: str, query: str) -> float:
     req = urllib.request.Request(
         f"{target_url.rstrip('/')}/api/v1/query",
         data=payload,
-        headers={"Content-Type": "application/json"}
+        headers={"Content-Type": "application/json"},
     )
     try:
         with urllib.request.urlopen(req, timeout=10) as response:
@@ -27,15 +28,16 @@ def send_query_request(target_url: str, query: str) -> float:
     except Exception:
         return -1.0
 
+
 def run_load_test(target_url: str, total_requests: int, concurrency: int):
     print(f"Starting Load Test against {target_url}")
     print(f"Total Requests: {total_requests} | Concurrency: {concurrency}")
-    
+
     sample_queries = [
         "What is the revenue growth for enterprise client ACME Corp?",
         "Summarize security compliance guidelines for financial data.",
         "What are the top active contracts in database?",
-        "Explain RAGTUNE vector similarity threshold settings."
+        "Explain RAGTUNE vector similarity threshold settings.",
     ]
 
     latencies = []
@@ -44,13 +46,15 @@ def run_load_test(target_url: str, total_requests: int, concurrency: int):
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=concurrency) as executor:
         futures = [
-            executor.submit(send_query_request, target_url, sample_queries[i % len(sample_queries)])
+            executor.submit(
+                send_query_request, target_url, sample_queries[i % len(sample_queries)]
+            )
             for i in range(total_requests)
         ]
         for future in concurrent.futures.as_completed(futures):
             latency = future.result()
             if latency > 0:
-                latencies.append(latency * 1000.0) # convert to ms
+                latencies.append(latency * 1000.0)  # convert to ms
             else:
                 failures += 1
 
@@ -64,7 +68,7 @@ def run_load_test(target_url: str, total_requests: int, concurrency: int):
     print(f" Successful Requests : {len(latencies)} / {total_requests}")
     print(f" Failed Requests     : {failures}")
     print(f" Throughput (RPS)    : {rps:.2f} req/sec")
-    
+
     if latencies:
         print(f" Min Latency         : {min(latencies):.2f} ms")
         print(f" Max Latency         : {max(latencies):.2f} ms")
@@ -75,11 +79,16 @@ def run_load_test(target_url: str, total_requests: int, concurrency: int):
         print(f" 95th Percentile p95 : {sorted_lat[p95_idx]:.2f} ms")
     print("=" * 60 + "\n")
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="RAGTUNE Load Testing Tool")
     parser.add_argument("--url", default="http://localhost:8000", help="Target API URL")
-    parser.add_argument("--requests", type=int, default=50, help="Total number of requests")
-    parser.add_argument("--concurrency", type=int, default=10, help="Concurrent workers")
+    parser.add_argument(
+        "--requests", type=int, default=50, help="Total number of requests"
+    )
+    parser.add_argument(
+        "--concurrency", type=int, default=10, help="Concurrent workers"
+    )
     args = parser.parse_args()
 
     run_load_test(args.url, args.requests, args.concurrency)
