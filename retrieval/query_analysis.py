@@ -4,9 +4,24 @@ Performs query normalization, keyword extraction, and selective Hypothetical Doc
 """
 
 import re
-from typing import Tuple, List
 
-STOP_WORDS = {"what", "is", "our", "the", "a", "an", "in", "on", "at", "for", "to", "of", "and", "or", "with"}
+STOP_WORDS = {
+    "what",
+    "is",
+    "our",
+    "the",
+    "a",
+    "an",
+    "in",
+    "on",
+    "at",
+    "for",
+    "to",
+    "of",
+    "and",
+    "or",
+    "with",
+}
 
 
 class QueryUnderstanding:
@@ -20,13 +35,13 @@ class QueryUnderstanding:
         q = re.sub(r"\s+", " ", query.strip())
         return q
 
-    def extract_keywords(self, query: str) -> List[str]:
+    def extract_keywords(self, query: str) -> list[str]:
         """Extracts key lexical search tokens from query."""
         tokens = re.findall(r"\w+", query.lower())
         keywords = [t for t in tokens if t not in STOP_WORDS and len(t) > 2]
         return keywords
 
-    def generate_hyde_expansion(self, query: str) -> Tuple[str, bool]:
+    def generate_hyde_expansion(self, query: str) -> tuple[str, bool]:
         """
         Conditionally generates a hypothetical document snippet (HyDE)
         to improve dense embedding retrieval accuracy.
@@ -35,7 +50,11 @@ class QueryUnderstanding:
         words = normalized.split()
 
         # Decide whether HyDE expansion is warranted
-        should_hyde = self.enable_hyde and (len(words) < 5 or "policy" in normalized.lower() or "agreement" in normalized.lower())
+        should_hyde = self.enable_hyde and (
+            len(words) < 5
+            or "policy" in normalized.lower()
+            or "agreement" in normalized.lower()
+        )
 
         if not should_hyde:
             return normalized, False
