@@ -3,17 +3,21 @@ RAGTUNE Intelligent Caching System - Tag-Based Event Invalidation Engine
 Processes system lifecycle events to purge targeted cache entries across cache tiers.
 """
 
-from typing import List, Callable, Dict, Any
+from collections.abc import Callable
+from typing import Any
+
+from cache.core.keys import TenantCacheKeyBuilder
 from cache.core.provider import BaseCacheProvider
 from cache.engines.semantic_cache import SemanticCacheEngine
-from cache.core.keys import TenantCacheKeyBuilder
 
 
 class CacheInvalidationEngine:
-    def __init__(self, provider: BaseCacheProvider, semantic_cache: SemanticCacheEngine):
+    def __init__(
+        self, provider: BaseCacheProvider, semantic_cache: SemanticCacheEngine
+    ):
         self.provider = provider
         self.semantic_cache = semantic_cache
-        self._event_subscribers: Dict[str, List[Callable[[Dict[str, Any]], None]]] = {}
+        self._event_subscribers: dict[str, list[Callable[[dict[str, Any]], None]]] = {}
 
     def invalidate_document(self, tenant_id: str, document_id: str) -> int:
         """Invalidates all retrieval & hybrid search entries referencing document_id."""
@@ -34,7 +38,7 @@ class CacheInvalidationEngine:
         tag = TenantCacheKeyBuilder.build_tag(tenant_id, "user", user_id)
         return self.provider.delete_by_tag(tag)
 
-    def handle_system_event(self, event_type: str, payload: Dict[str, Any]) -> int:
+    def handle_system_event(self, event_type: str, payload: dict[str, Any]) -> int:
         """
         Dispatches system events:
         - 'document:updated': payload = {tenant_id, document_id}
