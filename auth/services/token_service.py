@@ -4,11 +4,11 @@ Handles JWT Access Tokens, Refresh Token Rotation (RTR), session tracking, and r
 """
 
 import uuid
-from datetime import datetime, timedelta
-from typing import Dict, Any, Tuple, Optional
+from datetime import timedelta
+
+from auth.domain.models import SessionDomain, utc_now
 from auth.security.crypto import CryptoService
 from auth.security.jwt_handler import JWTHandler
-from auth.domain.models import SessionDomain, utc_now
 from auth.storage.auth_db import AuthDatabaseRepository
 
 REFRESH_TOKEN_TTL_DAYS = 7
@@ -23,13 +23,13 @@ class TokenService:
         self,
         user_id: str,
         email: str,
-        org_id: Optional[str] = None,
-        org_role: Optional[str] = None,
-        workspace_id: Optional[str] = None,
-        workspace_role: Optional[str] = None,
-        ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None
-    ) -> Tuple[str, str, SessionDomain]:
+        org_id: str | None = None,
+        org_role: str | None = None,
+        workspace_id: str | None = None,
+        workspace_role: str | None = None,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+    ) -> tuple[str, str, SessionDomain]:
         """
         Creates a new session, generates access & refresh tokens, and persists hashed session in DB.
         Returns: (access_token: str, refresh_token: str, session: SessionDomain)
@@ -47,7 +47,7 @@ class TokenService:
             ip_address=ip_address,
             user_agent=user_agent,
             is_revoked=False,
-            expires_at=expires_at
+            expires_at=expires_at,
         )
 
         self.repo.create_session(sess)
@@ -59,7 +59,7 @@ class TokenService:
             org_id=org_id,
             org_role=org_role,
             workspace_id=workspace_id,
-            workspace_role=workspace_role
+            workspace_role=workspace_role,
         )
 
         return access_token, refresh_token, sess
@@ -67,9 +67,9 @@ class TokenService:
     def rotate_refresh_token(
         self,
         refresh_token: str,
-        ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None
-    ) -> Tuple[bool, Optional[str], Optional[str], str]:
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+    ) -> tuple[bool, str | None, str | None, str]:
         """
         Enforces Refresh Token Rotation (RTR).
         Validates current token, revokes previous session, and issues a new token pair.
@@ -87,7 +87,12 @@ class TokenService:
         if sess.is_revoked:
             # Possible token reuse attack! Revoke all sessions for safety.
             self.repo.revoke_all_user_sessions(sess.user_id)
-            return False, None, None, "Security violation: Revoked refresh token reused. All sessions invalidated."
+            return (
+                False,
+                None,
+                None,
+                "Security violation: Revoked refresh token reused. All sessions invalidated.",
+            )
 
         if sess.expires_at < utc_now():
             self.repo.revoke_session(sess.session_id)
@@ -106,7 +111,7 @@ class TokenService:
             user_id=user.user_id,
             email=user.email,
             ip_address=ip_address,
-            user_agent=user_agent
+            user_agent=user_agent,
         )
 
         return True, new_access_token, new_refresh_token, "Token rotated successfully"
