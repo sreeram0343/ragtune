@@ -4,10 +4,15 @@ Applies NFKC Unicode normalization, strips zero-width spaces, and filters XSS sc
 """
 
 import re
-import unicodedata
 import time
-from typing import Dict, Any
-from input_security.framework.stage import BaseSecurityStage, StageResult, SecurityRequestContainer
+import unicodedata
+from typing import Any
+
+from input_security.framework.stage import (
+    BaseSecurityStage,
+    SecurityRequestContainer,
+    StageResult,
+)
 
 ZERO_WIDTH_CHARS = ["\u200b", "\u200c", "\u200d", "\ufeff", "\u00ad"]
 XSS_PATTERNS = [
@@ -22,8 +27,12 @@ XSS_PATTERNS = [
 
 class NormalizationSanitizationStage(BaseSecurityStage):
     def __init__(self):
-        super().__init__(stage_id=5, stage_name="Request Normalization & XSS Sanitization")
-        self.xss_regexes = [re.compile(p, re.IGNORECASE | re.DOTALL) for p in XSS_PATTERNS]
+        super().__init__(
+            stage_id=5, stage_name="Request Normalization & XSS Sanitization"
+        )
+        self.xss_regexes = [
+            re.compile(p, re.IGNORECASE | re.DOTALL) for p in XSS_PATTERNS
+        ]
 
     def _sanitize_string(self, text: str) -> str:
         if not text:
@@ -62,7 +71,9 @@ class NormalizationSanitizationStage(BaseSecurityStage):
             sanitized_query = self._sanitize_string(container.user_query)
             container.user_query = sanitized_query
 
-        audit_notes.append("NFKC Unicode normalization, zero-width stripping, and XSS filtering applied clean")
+        audit_notes.append(
+            "NFKC Unicode normalization, zero-width stripping, and XSS filtering applied clean"
+        )
 
         latency = (time.time() - t0) * 1000
         return StageResult(
@@ -72,5 +83,5 @@ class NormalizationSanitizationStage(BaseSecurityStage):
             threat_score=0.0,
             sanitized_payload=sanitized_payload,
             audit_notes=audit_notes,
-            execution_time_ms=round(latency, 2)
+            execution_time_ms=round(latency, 2),
         )
