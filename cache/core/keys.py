@@ -5,16 +5,13 @@ Constructs deterministic, namespaced cache keys enforcing multi-tenant boundary 
 
 import hashlib
 import json
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 class TenantCacheKeyBuilder:
     @staticmethod
     def build_key(
-        tenant_id: str,
-        workspace_id: str,
-        namespace: str,
-        payload: Any
+        tenant_id: str, workspace_id: str, namespace: str, payload: Any
     ) -> str:
         """
         Builds a deterministic multi-tenant cache key:
