@@ -2,8 +2,8 @@
 RAGTUNE - Test Suite for REST API Gateway
 """
 
-import pytest
 from fastapi.testclient import TestClient
+
 from api.main import app
 
 client = TestClient(app)
@@ -19,7 +19,7 @@ def test_health_check():
 def test_query_endpoint():
     response = client.post(
         "/api/v1/query",
-        json={"query": "What is our response time SLA policy for Severity 1 outages?"}
+        json={"query": "What is our response time SLA policy for Severity 1 outages?"},
     )
     assert response.status_code == 200
     data = response.json()
