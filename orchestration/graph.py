@@ -3,16 +3,28 @@ RAGTUNE Workflow Orchestration Engine - LangGraph StateGraph Compilation
 Constructs and compiles the deterministic workflow state machine using LangGraph.
 """
 
-from typing import Dict, Any, Literal
-from langgraph.graph import StateGraph, END
-from orchestration.state import OrchestrationState, WorkflowStatusEnum
+from typing import Literal
+
+from langgraph.graph import END, StateGraph
+
 from orchestration.nodes import (
-    init_node, router_node, sql_node, rag_node, fusion_node,
-    evaluation_node, hitl_gate_node, retry_node, synthesis_node, fallback_node
+    evaluation_node,
+    fallback_node,
+    fusion_node,
+    hitl_gate_node,
+    init_node,
+    rag_node,
+    retry_node,
+    router_node,
+    sql_node,
+    synthesis_node,
 )
+from orchestration.state import OrchestrationState, WorkflowStatusEnum
 
 
-def _route_after_router(state: OrchestrationState) -> Literal["sql_node", "rag_node", "fusion_node"]:
+def _route_after_router(
+    state: OrchestrationState,
+) -> Literal["sql_node", "rag_node", "fusion_node"]:
     intent = state.get("intent", "HYBRID")
     if intent == "STRUCTURED":
         return "sql_node"
@@ -21,7 +33,9 @@ def _route_after_router(state: OrchestrationState) -> Literal["sql_node", "rag_n
     return "fusion_node"
 
 
-def _route_after_evaluation(state: OrchestrationState) -> Literal["synthesis_node", "hitl_gate_node", "retry_node"]:
+def _route_after_evaluation(
+    state: OrchestrationState,
+) -> Literal["synthesis_node", "hitl_gate_node", "retry_node"]:
     if state.get("hitl_decision") == "REJECTED" or state.get("requires_hitl", False):
         return "hitl_gate_node"
     if not state.get("policy_passed", True):
@@ -29,7 +43,9 @@ def _route_after_evaluation(state: OrchestrationState) -> Literal["synthesis_nod
     return "synthesis_node"
 
 
-def _route_after_hitl(state: OrchestrationState) -> Literal["synthesis_node", "fallback_node", "__end__"]:
+def _route_after_hitl(
+    state: OrchestrationState,
+) -> Literal["synthesis_node", "fallback_node", "__end__"]:
     decision = state.get("hitl_decision")
     if decision == "APPROVED":
         return "synthesis_node"
@@ -39,7 +55,9 @@ def _route_after_hitl(state: OrchestrationState) -> Literal["synthesis_node", "f
     return END
 
 
-def _route_after_retry(state: OrchestrationState) -> Literal["evaluation_node", "fallback_node"]:
+def _route_after_retry(
+    state: OrchestrationState,
+) -> Literal["evaluation_node", "fallback_node"]:
     status = state.get("status")
     if status == WorkflowStatusEnum.FAILED.value:
         return "fallback_node"
