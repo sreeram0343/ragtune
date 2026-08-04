@@ -4,13 +4,13 @@ Exposes unified workflow execution and HITL resumption APIs powered by LangGraph
 """
 
 import uuid
-import time
-from typing import Dict, Any, Optional, Tuple
+from typing import Any
+
 from input_security.framework.stage import EnrichedSecurityRequest
-from orchestration.state import OrchestrationState, WorkflowStatusEnum
-from orchestration.graph import WorkflowGraphBuilder
 from orchestration.checkpointer import WorkflowCheckpointer
+from orchestration.graph import WorkflowGraphBuilder
 from orchestration.hitl import HumanApprovalManager
+from orchestration.state import OrchestrationState, WorkflowStatusEnum
 
 
 class WorkflowOrchestrationEngine:
@@ -22,21 +22,26 @@ class WorkflowOrchestrationEngine:
     def execute_workflow(
         self,
         security_request: EnrichedSecurityRequest,
-        custom_metadata: Optional[Dict[str, Any]] = None
+        custom_metadata: dict[str, Any] | None = None,
     ) -> OrchestrationState:
         """
         Submits an EnrichedSecurityRequest to the LangGraph workflow engine.
         Executes state machine nodes, checkpoints state snapshots, and suspends if HITL triggered.
         """
         workflow_id = f"wf_{uuid.uuid4().hex[:12]}"
-        orig = security_request.original_container
         sec_ctx = security_request.security_context
 
         initial_state: OrchestrationState = {
             "workflow_id": workflow_id,
             "request_id": security_request.request_id,
-            "tenant_id": sec_ctx.org_id if sec_ctx and sec_ctx.org_id else "global_tenant",
-            "workspace_id": sec_ctx.workspace_id if sec_ctx and sec_ctx.workspace_id else "global_ws",
+            "tenant_id": (
+                sec_ctx.org_id if sec_ctx and sec_ctx.org_id else "global_tenant"
+            ),
+            "workspace_id": (
+                sec_ctx.workspace_id
+                if sec_ctx and sec_ctx.workspace_id
+                else "global_ws"
+            ),
             "user_id": sec_ctx.user_id if sec_ctx else "anonymous",
             "user_query": security_request.sanitized_query,
             "status": WorkflowStatusEnum.PENDING.value,
@@ -48,7 +53,7 @@ class WorkflowOrchestrationEngine:
             "groundedness_score": 0.0,
             "policy_passed": True,
             "requires_hitl": False,
-            "metadata": custom_metadata or {}
+            "metadata": custom_metadata or {},
         }
 
         # 1. Save Initial Checkpoint
@@ -58,7 +63,9 @@ class WorkflowOrchestrationEngine:
         final_state: OrchestrationState = self.compiled_graph.invoke(initial_state)
 
         # 3. Save Post-Execution Checkpoint
-        self.checkpointer.save_checkpoint(workflow_id, final_state, final_state.get("current_node", "end"))
+        self.checkpointer.save_checkpoint(
+            workflow_id, final_state, final_state.get("current_node", "end")
+        )
 
         # 4. If suspended for HITL, register approval ticket in HITL manager
         if final_state.get("requires_hitl") and final_state.get("hitl_ticket_id"):
@@ -68,7 +75,7 @@ class WorkflowOrchestrationEngine:
                 tenant_id=final_state["tenant_id"],
                 workspace_id=final_state["workspace_id"],
                 user_query=final_state["user_query"],
-                reason=f"Evaluation score ({final_state.get('evaluation_score')}) below threshold or security policy flag"
+                reason=f"Evaluation score ({final_state.get('evaluation_score')}) below threshold or security policy flag",
             )
 
         return final_state
@@ -78,19 +85,30 @@ class WorkflowOrchestrationEngine:
         workflow_id: str,
         operator_id: str,
         decision: str,  # "APPROVED" or "REJECTED"
-        notes: Optional[str] = None
-    ) -> Tuple[bool, Optional[OrchestrationState], str]:
+        notes: str | None = None,
+    ) -> tuple[bool, OrchestrationState | None, str]:
         """
         Resumes a suspended workflow following human operator review.
         """
         latest_ckpt = self.checkpointer.get_latest_checkpoint(workflow_id)
         if not latest_ckpt:
-            return False, None, f"Workflow '{workflow_id}' not found in state checkpoints"
+            return (
+                False,
+                None,
+                f"Workflow '{workflow_id}' not found in state checkpoints",
+            )
 
         state: OrchestrationState = latest_ckpt["state"]
 
-        if state.get("status") not in [WorkflowStatusEnum.AWAITING_APPROVAL.value, "SUSPENDED"]:
-            return False, state, f"Workflow is not awaiting approval (Status: {state.get('status')})"
+        if state.get("status") not in [
+            WorkflowStatusEnum.AWAITING_APPROVAL.value,
+            "SUSPENDED",
+        ]:
+            return (
+                False,
+                state,
+                f"Workflow is not awaiting approval (Status: {state.get('status')})",
+            )
 
         # Submit HITL decision in manager
         ticket_id = state.get("hitl_ticket_id")
@@ -104,6 +122,12 @@ class WorkflowOrchestrationEngine:
         resumed_state: OrchestrationState = self.compiled_graph.invoke(state)
 
         # Save post-resumption checkpoint
-        self.checkpointer.save_checkpoint(workflow_id, resumed_state, "resume_post_hitl")
+        self.checkpointer.save_checkpoint(
+            workflow_id, resumed_state, "resume_post_hitl"
+        )
 
-        return True, resumed_state, f"Workflow resumed successfully with decision '{decision}'"
+        return (
+            True,
+            resumed_state,
+            f"Workflow resumed successfully with decision '{decision}'",
+        )
