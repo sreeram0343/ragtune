@@ -3,7 +3,8 @@ RAGTUNE Enterprise Hybrid Retrieval Engine - Domain Models & Data Structures
 Defines document chunk schemas, search candidates, evidence packages, and retrieval metrics.
 """
 
-from typing import List, Dict, Any, Optional
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -12,8 +13,8 @@ class DocumentChunk(BaseModel):
     document_id: str
     document_title: str
     content: str
-    embedding: List[float] = Field(default_factory=list)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    embedding: list[float] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
     tenant_id: str = "global_tenant"
     workspace_id: str = "global_ws"
 
@@ -50,9 +51,9 @@ class RetrievalMetrics(BaseModel):
 
 class EvidencePackage(BaseModel):
     query: str
-    expanded_query: Optional[str] = None
-    chunks: List[DocumentChunk] = Field(default_factory=list)
-    citations: List[CitationReference] = Field(default_factory=list)
+    expanded_query: str | None = None
+    chunks: list[DocumentChunk] = Field(default_factory=list)
+    citations: list[CitationReference] = Field(default_factory=list)
     retrieval_confidence: float = 1.0
     total_tokens_used: int = 0
     metrics: RetrievalMetrics = Field(default_factory=RetrievalMetrics)
