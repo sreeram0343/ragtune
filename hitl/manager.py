@@ -5,7 +5,8 @@ Maintains review queue for flagged queries, low confidence outputs, or high-risk
 
 import time
 import uuid
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -18,16 +19,16 @@ class HITLRequestItem(BaseModel):
     reason: str
     confidence_score: float
     status: str = "PENDING"  # PENDING, APPROVED, REJECTED, MODIFIED
-    context_data: Dict[str, Any] = Field(default_factory=dict)
-    operator_notes: Optional[str] = None
-    resolved_by: Optional[str] = None
-    resolved_at: Optional[float] = None
+    context_data: dict[str, Any] = Field(default_factory=dict)
+    operator_notes: str | None = None
+    resolved_by: str | None = None
+    resolved_at: float | None = None
 
 
 class HITLManager:
     def __init__(self):
-        self.pending_queue: Dict[str, HITLRequestItem] = {}
-        self.audit_log: List[HITLRequestItem] = []
+        self.pending_queue: dict[str, HITLRequestItem] = {}
+        self.audit_log: list[HITLRequestItem] = []
 
     def create_ticket(
         self,
@@ -36,7 +37,7 @@ class HITLManager:
         original_query: str,
         reason: str,
         confidence_score: float,
-        context_data: Optional[Dict[str, Any]] = None
+        context_data: dict[str, Any] | None = None,
     ) -> HITLRequestItem:
         """Creates and enqueues a new HITL review ticket."""
         ticket = HITLRequestItem(
@@ -45,12 +46,14 @@ class HITLManager:
             original_query=original_query,
             reason=reason,
             confidence_score=confidence_score,
-            context_data=context_data or {}
+            context_data=context_data or {},
         )
         self.pending_queue[ticket.ticket_id] = ticket
         return ticket
 
-    def list_pending_tickets(self, tenant_id: Optional[str] = None) -> List[HITLRequestItem]:
+    def list_pending_tickets(
+        self, tenant_id: str | None = None
+    ) -> list[HITLRequestItem]:
         """Returns active pending HITL tickets."""
         tickets = list(self.pending_queue.values())
         if tenant_id:
@@ -62,9 +65,9 @@ class HITLManager:
         ticket_id: str,
         action: str,  # APPROVE or REJECT
         operator_id: str,
-        operator_notes: Optional[str] = None,
-        modified_data: Optional[Dict[str, Any]] = None
-    ) -> Tuple[bool, str, Optional[HITLRequestItem]]:
+        operator_notes: str | None = None,
+        modified_data: dict[str, Any] | None = None,
+    ) -> tuple[bool, str, HITLRequestItem | None]:
         """Resolves a pending ticket with operator approval or rejection."""
         if ticket_id not in self.pending_queue:
             return False, f"Ticket '{ticket_id}' not found in pending queue", None
@@ -83,6 +86,8 @@ class HITLManager:
         self.audit_log.append(ticket)
         return True, f"Ticket '{ticket_id}' resolved as {ticket.status}", ticket
 
-    def get_audit_history(self, limit: int = 50) -> List[HITLRequestItem]:
+    def get_audit_history(self, limit: int = 50) -> list[HITLRequestItem]:
         """Returns history of resolved HITL tickets."""
-        return sorted(self.audit_log, key=lambda x: x.resolved_at or 0.0, reverse=True)[:limit]
+        return sorted(self.audit_log, key=lambda x: x.resolved_at or 0.0, reverse=True)[
+            :limit
+        ]
