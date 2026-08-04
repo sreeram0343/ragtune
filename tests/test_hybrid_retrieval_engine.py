@@ -3,30 +3,41 @@ RAGTUNE Enterprise Hybrid Retrieval Engine - Comprehensive Test Suite
 Tests HyDE query expansion, dense/sparse search, RRF fusion, Cross-Encoder re-ranking, token budgeting, and IR metrics.
 """
 
-import pytest
 import json
-from input_security.framework.stage import SecurityRequestContainer, EnrichedSecurityRequest, TrustLevel
+
 from auth.domain.models import SecurityContext, UserStatus
+from input_security.framework.stage import (
+    EnrichedSecurityRequest,
+    SecurityRequestContainer,
+    TrustLevel,
+)
 from retrieval import (
-    HybridRetrievalEngine, HybridSearchEngine, DocumentChunk, SearchCandidate,
-    QueryUnderstanding, ReciprocalRankFusion, CrossEncoderReRanker, ContextBuilder, RetrievalEvaluator
+    ContextBuilder,
+    DocumentChunk,
+    HybridRetrievalEngine,
+    HybridSearchEngine,
+    ReciprocalRankFusion,
+    RetrievalEvaluator,
+    SearchCandidate,
 )
 
 
-def _build_dummy_security_request(query: str, org_id="org_acme", workspace_id="ws_main") -> EnrichedSecurityRequest:
+def _build_dummy_security_request(
+    query: str, org_id="org_acme", workspace_id="ws_main"
+) -> EnrichedSecurityRequest:
     sec_ctx = SecurityContext(
         user_id="usr_retrieval_test",
         email="retrieval@enterprise.com",
         status=UserStatus.ACTIVE,
         org_id=org_id,
         workspace_id=workspace_id,
-        permissions={"workspace:read"}
+        permissions={"workspace:read"},
     )
 
     container = SecurityRequestContainer(
         raw_body=json.dumps({"query": query}).encode("utf-8"),
         user_query=query,
-        user_context=sec_ctx
+        user_context=sec_ctx,
     )
 
     return EnrichedSecurityRequest(
@@ -37,13 +48,15 @@ def _build_dummy_security_request(query: str, org_id="org_acme", workspace_id="w
         security_context=sec_ctx,
         trust_level=TrustLevel.HIGH,
         cumulative_risk_score=0.0,
-        cleared_for_orchestration=True
+        cleared_for_orchestration=True,
     )
 
 
 def test_end_to_end_hybrid_retrieval():
     engine = HybridRetrievalEngine()
-    req = _build_dummy_security_request("What is our enterprise SLA commitment for Acme?")
+    req = _build_dummy_security_request(
+        "What is our enterprise SLA commitment for Acme?"
+    )
 
     package = engine.retrieve_evidence(req, top_k=5)
 
@@ -57,11 +70,24 @@ def test_end_to_end_hybrid_retrieval():
 
 def test_reciprocal_rank_fusion_rrf():
     fusion = ReciprocalRankFusion(rrf_k=60)
-    chunk1 = DocumentChunk(chunk_id="c1", document_id="d1", document_title="Doc 1", content="SLA commitment 99.9%")
-    chunk2 = DocumentChunk(chunk_id="c2", document_id="d2", document_title="Doc 2", content="Travel per diem $150")
+    chunk1 = DocumentChunk(
+        chunk_id="c1",
+        document_id="d1",
+        document_title="Doc 1",
+        content="SLA commitment 99.9%",
+    )
+    chunk2 = DocumentChunk(
+        chunk_id="c2",
+        document_id="d2",
+        document_title="Doc 2",
+        content="Travel per diem $150",
+    )
 
     dense = [SearchCandidate(chunk=chunk1, score=0.9, rank=1, source="DENSE")]
-    sparse = [SearchCandidate(chunk=chunk2, score=3.0, rank=1, source="SPARSE"), SearchCandidate(chunk=chunk1, score=1.0, rank=2, source="SPARSE")]
+    sparse = [
+        SearchCandidate(chunk=chunk2, score=3.0, rank=1, source="SPARSE"),
+        SearchCandidate(chunk=chunk1, score=1.0, rank=2, source="SPARSE"),
+    ]
 
     fused = fusion.fuse(dense, sparse, top_k=5)
 
@@ -72,9 +98,26 @@ def test_reciprocal_rank_fusion_rrf():
 
 def test_context_builder_token_budget_and_deduplication():
     builder = ContextBuilder(max_token_budget=50)  # Very tight token budget
-    chunk1 = DocumentChunk(chunk_id="c1", document_id="d1", document_title="Doc 1", content="Short snippet 1")
-    chunk2 = DocumentChunk(chunk_id="c2", document_id="d2", document_title="Doc 2", content="Duplicate snippet", content_hash=1)
-    chunk3 = DocumentChunk(chunk_id="c3", document_id="d3", document_title="Doc 3", content="Duplicate snippet", content_hash=1)
+    chunk1 = DocumentChunk(
+        chunk_id="c1",
+        document_id="d1",
+        document_title="Doc 1",
+        content="Short snippet 1",
+    )
+    chunk2 = DocumentChunk(
+        chunk_id="c2",
+        document_id="d2",
+        document_title="Doc 2",
+        content="Duplicate snippet",
+        content_hash=1,
+    )
+    chunk3 = DocumentChunk(
+        chunk_id="c3",
+        document_id="d3",
+        document_title="Doc 3",
+        content="Duplicate snippet",
+        content_hash=1,
+    )
 
     candidates = [
         SearchCandidate(chunk=chunk1, score=0.9, rank=1, source="RERANKED"),
@@ -91,13 +134,10 @@ def test_context_builder_token_budget_and_deduplication():
 
 def test_multi_tenant_workspace_security_isolation():
     search = HybridSearchEngine()
-    
+
     # Attempt search from different org/workspace
     res_other = search.search_sparse(
-        keywords=["sla"],
-        tenant_id="org_other",
-        workspace_id="ws_other",
-        top_k=5
+        keywords=["sla"], tenant_id="org_other", workspace_id="ws_other", top_k=5
     )
     # Acme SLA chunk should not leak to org_other
     chunk_ids = [c.chunk.chunk_id for c in res_other]
@@ -106,12 +146,16 @@ def test_multi_tenant_workspace_security_isolation():
 
 def test_ir_evaluation_metrics():
     evaluator = RetrievalEvaluator()
-    chunk1 = DocumentChunk(chunk_id="c1", document_id="d1", document_title="Doc 1", content="Content 1")
-    chunk2 = DocumentChunk(chunk_id="c2", document_id="d2", document_title="Doc 2", content="Content 2")
+    chunk1 = DocumentChunk(
+        chunk_id="c1", document_id="d1", document_title="Doc 1", content="Content 1"
+    )
+    chunk2 = DocumentChunk(
+        chunk_id="c2", document_id="d2", document_title="Doc 2", content="Content 2"
+    )
 
     retrieved = [
         SearchCandidate(chunk=chunk1, score=0.9, rank=1, source="RERANKED"),
-        SearchCandidate(chunk=chunk2, score=0.8, rank=2, source="RERANKED")
+        SearchCandidate(chunk=chunk2, score=0.8, rank=2, source="RERANKED"),
     ]
     relevant = {"c1"}
 
