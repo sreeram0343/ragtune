@@ -3,7 +3,8 @@ RAGTUNE Enterprise Text-to-SQL Engine - Domain Models & Schemas
 Defines database metadata, SQL validation structures, execution telemetry, and structured results.
 """
 
-from typing import List, Dict, Any, Optional
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -17,14 +18,14 @@ class ColumnSchema(BaseModel):
 
 class TableSchema(BaseModel):
     table_name: str
-    columns: List[ColumnSchema] = Field(default_factory=list)
+    columns: list[ColumnSchema] = Field(default_factory=list)
     description: str = ""
     tenant_id: str = "global_tenant"
 
 
 class SQLValidationResult(BaseModel):
     is_valid: bool
-    error_message: Optional[str] = None
+    error_message: str | None = None
     sanitized_sql: str
     statement_type: str = "SELECT"
     row_limit_applied: int = 100
@@ -44,11 +45,11 @@ class StructuredSQLResult(BaseModel):
     natural_query: str
     generated_sql: str
     sanitized_sql: str = ""
-    columns: List[str] = Field(default_factory=list)
-    rows: List[List[Any]] = Field(default_factory=list)
+    columns: list[str] = Field(default_factory=list)
+    rows: list[Any] = Field(default_factory=list)
     row_count: int = 0
     summary_text: str = ""
-    error_message: Optional[str] = None
+    error_message: str | None = None
     metrics: SQLExecutionMetrics = Field(default_factory=SQLExecutionMetrics)
 
     @property
