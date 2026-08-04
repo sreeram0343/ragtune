@@ -3,12 +3,13 @@ RAGTUNE Workflow Orchestration Engine - Core State Definitions & Schema
 Defines typed state containers, workflow status lifecycles, and node execution history.
 """
 
-from enum import Enum
-from typing import Dict, Any, List, Optional, TypedDict
-from pydantic import BaseModel, Field
+from enum import StrEnum
+from typing import Any, TypedDict
+
+from pydantic import BaseModel
 
 
-class WorkflowStatusEnum(str, Enum):
+class WorkflowStatusEnum(StrEnum):
     PENDING = "PENDING"
     INITIALIZING = "INITIALIZING"
     ROUTING = "ROUTING"
@@ -25,10 +26,10 @@ class WorkflowStatusEnum(str, Enum):
 class NodeExecutionRecord(BaseModel):
     node_name: str
     started_at: float
-    completed_at: Optional[float] = None
+    completed_at: float | None = None
     status: str = "SUCCESS"
-    output_summary: Optional[str] = None
-    error_detail: Optional[str] = None
+    output_summary: str | None = None
+    error_detail: str | None = None
     latency_ms: float = 0.0
 
 
@@ -39,30 +40,30 @@ class OrchestrationState(TypedDict, total=False):
     workspace_id: str
     user_id: str
     user_query: str
-    intent: Optional[str]  # "STRUCTURED", "UNSTRUCTURED", "HYBRID"
+    intent: str | None  # "STRUCTURED", "UNSTRUCTURED", "HYBRID"
     status: str  # WorkflowStatusEnum
     current_node: str
-    step_history: List[Dict[str, Any]]
-    
+    step_history: list[dict[str, Any]]
+
     # Node outputs
-    sql_query: Optional[str]
-    sql_result: Optional[Dict[str, Any]]
-    rag_documents: Optional[List[Dict[str, Any]]]
-    fusion_output: Optional[Dict[str, Any]]
-    
+    sql_query: str | None
+    sql_result: dict[str, Any] | None
+    rag_documents: list[dict[str, Any]] | None
+    fusion_output: dict[str, Any] | None
+
     # Quality & Policy Evaluation
     evaluation_score: float
     groundedness_score: float
     policy_passed: bool
     requires_hitl: bool
-    hitl_ticket_id: Optional[str]
-    hitl_decision: Optional[str]  # "APPROVED", "REJECTED"
-    
+    hitl_ticket_id: str | None
+    hitl_decision: str | None  # "APPROVED", "REJECTED"
+
     # Fault tolerance
     retry_count: int
     max_retries: int
-    error_message: Optional[str]
-    
+    error_message: str | None
+
     # Final Result
-    final_response: Optional[str]
-    metadata: Dict[str, Any]
+    final_response: str | None
+    metadata: dict[str, Any]
