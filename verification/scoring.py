@@ -13,19 +13,21 @@ class QualityScoringEngine:
         citation_coverage: float,
         relevance_score: float,
         hallucination_risk: float,
-        latency_ms: float = 0.0
+        latency_ms: float = 0.0,
     ) -> QualityMetrics:
         """
         Computes composite QualityMetrics and overall_quality_score.
         """
-        faithfulness = round(max(0.0, groundedness_score - (hallucination_risk * 0.5)), 2)
+        faithfulness = round(
+            max(0.0, groundedness_score - (hallucination_risk * 0.5)), 2
+        )
 
         # Weighted composite score
         composite = (
-            (groundedness_score * 0.35) +
-            (faithfulness * 0.25) +
-            (relevance_score * 0.20) +
-            ((1.0 - hallucination_risk) * 0.20)
+            (groundedness_score * 0.35)
+            + (faithfulness * 0.25)
+            + (relevance_score * 0.20)
+            + ((1.0 - hallucination_risk) * 0.20)
         )
         overall_score = round(min(max(composite, 0.0), 1.0), 2)
 
@@ -36,5 +38,5 @@ class QualityScoringEngine:
             relevance_score=relevance_score,
             hallucination_risk=hallucination_risk,
             overall_quality_score=overall_score,
-            verification_latency_ms=latency_ms
+            verification_latency_ms=latency_ms,
         )
