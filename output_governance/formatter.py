@@ -3,11 +3,10 @@ RAGTUNE Output Security & Response Governance Engine - Response Formatter
 Formats narrative content into clean Markdown, JSON, or Plain Text structures.
 """
 
-from typing import Dict, Any, List
 
 
 class ResponseFormatter:
-    def format_markdown(self, content: str, citations: List[str] = None) -> str:
+    def format_markdown(self, content: str, citations: list[str] = None) -> str:
         """Formats content into clean enterprise Markdown layout."""
         if not content:
             return ""
