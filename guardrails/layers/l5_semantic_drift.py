@@ -3,14 +3,16 @@ RAGTUNE - Guardrail Layer 5: Semantic Drift & Out-of-Scope Query Detector
 Measures query-context similarity and semantic alignment.
 """
 
-from typing import Tuple, List, Optional
-import numpy as np
+
 
 
 class SemanticDriftGuard:
     def evaluate_drift(
-        self, query: str, context_snippets: Optional[List[str]] = None, threshold: float = 0.3
-    ) -> Tuple[bool, float, str]:
+        self,
+        query: str,
+        context_snippets: list[str] | None = None,
+        threshold: float = 0.3,
+    ) -> tuple[bool, float, str]:
         """
         Evaluates semantic alignment between query and retrieved context snippets.
         """
@@ -32,7 +34,7 @@ class SemanticDriftGuard:
             return (
                 False,
                 float(overlap_score),
-                f"Semantic drift detected (low context token alignment score: {overlap_score:.2f} vs threshold {threshold})"
+                f"Semantic drift detected (low context token alignment score: {overlap_score:.2f} vs threshold {threshold})",
             )
 
         return True, float(min(1.0, overlap_score + 0.5)), "Semantic drift check passed"
