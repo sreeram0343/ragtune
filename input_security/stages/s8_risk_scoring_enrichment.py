@@ -5,10 +5,14 @@ Aggregates stage threat scores, calculates trust levels, and produces EnrichedSe
 
 import time
 import uuid
-from typing import List
+
 from input_security.framework.stage import (
-    BaseSecurityStage, StageResult, SecurityRequestContainer,
-    EnrichedSecurityRequest, TrustLevel, SecurityViolationException
+    BaseSecurityStage,
+    EnrichedSecurityRequest,
+    SecurityRequestContainer,
+    SecurityViolationException,
+    StageResult,
+    TrustLevel,
 )
 
 CUMULATIVE_RISK_THRESHOLD = 75.0
@@ -19,7 +23,7 @@ class RiskScoringEnrichmentStage(BaseSecurityStage):
         super().__init__(stage_id=8, stage_name="Risk Scoring & Context Enrichment")
 
     def process_enrichment(
-        self, container: SecurityRequestContainer, stage_results: List[StageResult]
+        self, container: SecurityRequestContainer, stage_results: list[StageResult]
     ) -> EnrichedSecurityRequest:
         t0 = time.time()
 
@@ -42,13 +46,17 @@ class RiskScoringEnrichmentStage(BaseSecurityStage):
                 message=f"Request blocked due to high cumulative threat risk score ({cumulative_risk:.1f}/100)",
                 status_code=400,
                 stage_name=self.stage_name,
-                risk_score=cumulative_risk
+                risk_score=cumulative_risk,
             )
 
         req_id = f"req_sec_{uuid.uuid4().hex[:12]}"
-        query_text = container.user_query or str(container.parsed_payload.get("query", ""))
+        query_text = container.user_query or str(
+            container.parsed_payload.get("query", "")
+        )
 
-        total_latency = sum(r.execution_time_ms for r in stage_results) + ((time.time() - t0) * 1000)
+        total_latency = sum(r.execution_time_ms for r in stage_results) + (
+            (time.time() - t0) * 1000
+        )
 
         return EnrichedSecurityRequest(
             request_id=req_id,
@@ -60,7 +68,7 @@ class RiskScoringEnrichmentStage(BaseSecurityStage):
             cumulative_risk_score=round(cumulative_risk, 2),
             stage_evaluations=stage_results,
             total_latency_ms=round(total_latency, 2),
-            cleared_for_orchestration=True
+            cleared_for_orchestration=True,
         )
 
     def process(self, container: SecurityRequestContainer) -> StageResult:
@@ -70,5 +78,5 @@ class RiskScoringEnrichmentStage(BaseSecurityStage):
             stage_name=self.stage_name,
             passed=True,
             threat_score=0.0,
-            audit_notes=["Risk scoring evaluated"]
+            audit_notes=["Risk scoring evaluated"],
         )
