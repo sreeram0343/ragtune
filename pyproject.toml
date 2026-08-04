@@ -1,0 +1,20 @@
+[tool.black]
+line-length = 88
+target-version = ['py311']
+include = '\.pyi?$'
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "UP"]
+ignore = [
+    "E501", # Ignore line-length violations (delegated to Black)
+]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_configs = true
+check_untyped_defs = true
