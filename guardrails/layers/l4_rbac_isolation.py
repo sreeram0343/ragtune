@@ -3,14 +3,13 @@ RAGTUNE - Guardrail Layer 4: RBAC & Tenant Data Isolation Guard
 Validates user permissions and enforces tenant-level data segregation.
 """
 
-from typing import Tuple, List, Optional
-from security.rbac import UserContext, Permission, Role
+from security.rbac import Permission, UserContext
 
 
 class RBACIsolationGuard:
     def evaluate_query_permission(
         self, user_context: UserContext, action_type: str = "QUERY_KNOWLEDGE"
-    ) -> Tuple[bool, float, str]:
+    ) -> tuple[bool, float, str]:
         """
         Validates if user context permits the requested action type.
         """
@@ -23,14 +22,18 @@ class RBACIsolationGuard:
             return (
                 False,
                 0.0,
-                f"Role '{user_context.role.value}' does not possess required permission '{perm.value}'"
+                f"Role '{user_context.role.value}' does not possess required permission '{perm.value}'",
             )
 
-        return True, 1.0, f"Access authorized for user '{user_context.user_id}' (Role: {user_context.role.value})"
+        return (
+            True,
+            1.0,
+            f"Access authorized for user '{user_context.user_id}' (Role: {user_context.role.value})",
+        )
 
     def evaluate_table_access(
-        self, user_context: UserContext, tables: List[str]
-    ) -> Tuple[bool, float, str]:
+        self, user_context: UserContext, tables: list[str]
+    ) -> tuple[bool, float, str]:
         """
         Validates whether target database tables match user RBAC restrictions.
         """
@@ -43,7 +46,11 @@ class RBACIsolationGuard:
             return (
                 False,
                 0.0,
-                f"Access denied to table(s): {', '.join(denied_tables)} under tenant '{user_context.tenant_id}'"
+                f"Access denied to table(s): {', '.join(denied_tables)} under tenant '{user_context.tenant_id}'",
             )
 
-        return True, 1.0, f"Table access authorized for tenant '{user_context.tenant_id}'"
+        return (
+            True,
+            1.0,
+            f"Table access authorized for tenant '{user_context.tenant_id}'",
+        )
