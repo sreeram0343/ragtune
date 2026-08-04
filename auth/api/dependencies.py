@@ -3,14 +3,16 @@ RAGTUNE Enterprise Identity & Access Management - FastAPI Dependencies
 Injects security context, validates Bearer tokens, and enforces RBAC permission guards.
 """
 
-from typing import Optional, Callable
-from fastapi import Depends, HTTPException, Security, Request
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from auth.security.jwt_handler import JWTHandler
+from collections.abc import Callable
+
+from fastapi import Depends, HTTPException, Request, Security
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
 from auth.domain.models import SecurityContext, UserStatus
-from auth.domain.permissions import Permission, OrgRole, WorkspaceRole
-from auth.storage.auth_db import AuthDatabaseRepository
+from auth.domain.permissions import OrgRole, Permission, WorkspaceRole
+from auth.security.jwt_handler import JWTHandler
 from auth.services.authorization_service import AuthorizationService
+from auth.storage.auth_db import AuthDatabaseRepository
 
 bearer_scheme = HTTPBearer(auto_error=False)
 jwt_handler = JWTHandler()
@@ -20,13 +22,15 @@ authz_service = AuthorizationService()
 
 def get_security_context(
     request: Request,
-    credentials: Optional[HTTPAuthorizationCredentials] = Security(bearer_scheme)
+    credentials: HTTPAuthorizationCredentials | None = Security(bearer_scheme),
 ) -> SecurityContext:
     """
     FastAPI dependency extracting and validating Bearer access token into SecurityContext.
     """
     if not credentials or not credentials.credentials:
-        raise HTTPException(status_code=401, detail="Authentication credentials (Bearer token) required")
+        raise HTTPException(
+            status_code=401, detail="Authentication credentials (Bearer token) required"
+        )
 
     token = credentials.credentials
     is_valid, claims, msg = jwt_handler.decode_access_token(token)
@@ -35,6 +39,8 @@ def get_security_context(
         raise HTTPException(status_code=401, detail=f"Authentication failed: {msg}")
 
     user_id = claims.get("sub")
+    if not user_id or not isinstance(user_id, str):
+        raise HTTPException(status_code=401, detail="Invalid token claims: sub missing or invalid")
     user = auth_db.get_user_by_id(user_id)
 
     if not user:
@@ -60,7 +66,7 @@ def get_security_context(
         workspace_role=ws_role,
         permissions=effective_perms,
         session_id=claims.get("sid"),
-        ip_address=client_ip
+        ip_address=client_ip,
     )
 
 
@@ -68,11 +74,15 @@ def require_permission(perm: Permission) -> Callable:
     """
     Dependency factory enforcing that the authenticated caller has the specified permission.
     """
-    def permission_checker(ctx: SecurityContext = Depends(get_security_context)) -> SecurityContext:
+
+    def permission_checker(
+        ctx: SecurityContext = Depends(get_security_context),
+    ) -> SecurityContext:
         if not authz_service.evaluate_permission(ctx, perm):
             raise HTTPException(
                 status_code=403,
-                detail=f"Forbidden: Action requires permission '{perm.value}'"
+                detail=f"Forbidden: Action requires permission '{perm.value}'",
             )
         return ctx
+
     return permission_checker
