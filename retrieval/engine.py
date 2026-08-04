@@ -4,21 +4,21 @@ Orchestrates query understanding, HyDE expansion, dual-path search, RRF fusion, 
 """
 
 import time
-from typing import Optional, List
+
 from input_security.framework.stage import EnrichedSecurityRequest
-from retrieval.domain import EvidencePackage, RetrievalMetrics
-from retrieval.query_analysis import QueryUnderstanding
-from retrieval.search import HybridSearchEngine
-from retrieval.fusion import ReciprocalRankFusion
-from retrieval.rerank import CrossEncoderReRanker
 from retrieval.context import ContextBuilder
+from retrieval.domain import EvidencePackage, RetrievalMetrics
+from retrieval.fusion import ReciprocalRankFusion
+from retrieval.query_analysis import QueryUnderstanding
+from retrieval.rerank import CrossEncoderReRanker
+from retrieval.search import HybridSearchEngine
 
 
 class HybridRetrievalEngine:
     def __init__(
         self,
-        search_engine: Optional[HybridSearchEngine] = None,
-        max_token_budget: int = 1500
+        search_engine: HybridSearchEngine | None = None,
+        max_token_budget: int = 1500,
     ):
         self.search_engine = search_engine if search_engine else HybridSearchEngine()
         self.query_analyzer = QueryUnderstanding()
@@ -27,9 +27,7 @@ class HybridRetrievalEngine:
         self.context_builder = ContextBuilder(max_token_budget=max_token_budget)
 
     def retrieve_evidence(
-        self,
-        security_request: EnrichedSecurityRequest,
-        top_k: int = 5
+        self, security_request: EnrichedSecurityRequest, top_k: int = 5
     ) -> EvidencePackage:
         """
         Main Retrieval API:
@@ -40,13 +38,17 @@ class HybridRetrievalEngine:
         sec_ctx = security_request.security_context
 
         tenant_id = sec_ctx.org_id if sec_ctx and sec_ctx.org_id else "global_tenant"
-        workspace_id = sec_ctx.workspace_id if sec_ctx and sec_ctx.workspace_id else "global_ws"
+        workspace_id = (
+            sec_ctx.workspace_id if sec_ctx and sec_ctx.workspace_id else "global_ws"
+        )
 
         # 1. Query Analysis & Selective HyDE Expansion
         t_hyde_start = time.time()
         normalized_q = self.query_analyzer.normalize_query(query)
         keywords = self.query_analyzer.extract_keywords(normalized_q)
-        expanded_query, was_hyde_used = self.query_analyzer.generate_hyde_expansion(normalized_q)
+        expanded_query, was_hyde_used = self.query_analyzer.generate_hyde_expansion(
+            normalized_q
+        )
         t_hyde_end = time.time()
 
         # 2. Dual-Path Search (Dense + Sparse)
@@ -57,13 +59,10 @@ class HybridRetrievalEngine:
             query_vector=dummy_query_vector,
             tenant_id=tenant_id,
             workspace_id=workspace_id,
-            top_k=10
+            top_k=10,
         )
         sparse_candidates = self.search_engine.search_sparse(
-            keywords=keywords,
-            tenant_id=tenant_id,
-            workspace_id=workspace_id,
-            top_k=10
+            keywords=keywords, tenant_id=tenant_id, workspace_id=workspace_id, top_k=10
         )
         t_search_end = time.time()
 
@@ -72,16 +71,14 @@ class HybridRetrievalEngine:
         fused_candidates = self.fusion_engine.fuse(
             dense_candidates=dense_candidates,
             sparse_candidates=sparse_candidates,
-            top_k=10
+            top_k=10,
         )
         t_fusion_end = time.time()
 
         # 4. Cross-Encoder Re-Ranking
         t_rerank_start = time.time()
         reranked_candidates = self.reranker.rerank(
-            query=normalized_q,
-            candidates=fused_candidates,
-            top_k=top_k
+            query=normalized_q, candidates=fused_candidates, top_k=top_k
         )
         t_rerank_end = time.time()
 
@@ -89,7 +86,7 @@ class HybridRetrievalEngine:
         package = self.context_builder.build_evidence_package(
             query=query,
             candidates=reranked_candidates,
-            expanded_query=expanded_query if was_hyde_used else ""
+            expanded_query=expanded_query if was_hyde_used else "",
         )
 
         t_total_end = time.time()
@@ -107,7 +104,7 @@ class HybridRetrievalEngine:
             rerank_latency_ms=round((t_rerank_end - t_rerank_start) * 1000.0, 2),
             precision_at_k=1.0 if len(package.chunks) > 0 else 0.0,
             mrr_at_k=1.0 if len(package.chunks) > 0 else 0.0,
-            ndcg_at_k=1.0 if len(package.chunks) > 0 else 0.0
+            ndcg_at_k=1.0 if len(package.chunks) > 0 else 0.0,
         )
 
         return package
