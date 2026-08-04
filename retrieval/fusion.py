@@ -3,8 +3,8 @@ RAGTUNE Enterprise Hybrid Retrieval Engine - Reciprocal Rank Fusion (RRF)
 Combines dense and sparse ranked candidate lists into a unified relevance score.
 """
 
-from typing import List, Dict
-from retrieval.domain import SearchCandidate, DocumentChunk
+
+from retrieval.domain import DocumentChunk, SearchCandidate
 
 
 class ReciprocalRankFusion:
@@ -13,16 +13,16 @@ class ReciprocalRankFusion:
 
     def fuse(
         self,
-        dense_candidates: List[SearchCandidate],
-        sparse_candidates: List[SearchCandidate],
-        top_k: int = 10
-    ) -> List[SearchCandidate]:
+        dense_candidates: list[SearchCandidate],
+        sparse_candidates: list[SearchCandidate],
+        top_k: int = 10,
+    ) -> list[SearchCandidate]:
         """
         Applies Reciprocal Rank Fusion (RRF) formula:
         Score(chunk) = sum(1 / (k + rank_i))
         """
-        scores: Dict[str, float] = {}
-        chunks_map: Dict[str, DocumentChunk] = {}
+        scores: dict[str, float] = {}
+        chunks_map: dict[str, DocumentChunk] = {}
 
         # 1. Process Dense Candidate Ranks
         for candidate in dense_candidates:
@@ -48,7 +48,7 @@ class ReciprocalRankFusion:
                     chunk=chunks_map[cid],
                     score=round(scores[cid], 6),
                     rank=rank,
-                    source="FUSED"
+                    source="FUSED",
                 )
             )
 
