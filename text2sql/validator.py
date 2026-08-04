@@ -4,25 +4,33 @@ Parses SQL syntax, enforces READ-ONLY SELECT statements, caps row limits, and ch
 """
 
 import re
-from typing import Optional
-from text2sql.domain import SQLValidationResult
+
 from auth.domain.models import SecurityContext
+from text2sql.domain import SQLValidationResult
 
 FORBIDDEN_KEYWORDS = [
-    r"\bdrop\b", r"\bdelete\b", r"\bupdate\b", r"\binsert\b", r"\balter\b",
-    r"\btruncate\b", r"\bgrant\b", r"\brevoke\b", r"\bexecute\b", r"\bexec\b"
+    r"\bdrop\b",
+    r"\bdelete\b",
+    r"\bupdate\b",
+    r"\binsert\b",
+    r"\balter\b",
+    r"\btruncate\b",
+    r"\bgrant\b",
+    r"\brevoke\b",
+    r"\bexecute\b",
+    r"\bexec\b",
 ]
 
 
 class SQLValidator:
     def __init__(self, max_row_limit: int = 100):
         self.max_row_limit = max_row_limit
-        self.forbidden_regexes = [re.compile(p, re.IGNORECASE) for p in FORBIDDEN_KEYWORDS]
+        self.forbidden_regexes = [
+            re.compile(p, re.IGNORECASE) for p in FORBIDDEN_KEYWORDS
+        ]
 
     def validate_sql(
-        self,
-        sql: str,
-        security_context: Optional[SecurityContext] = None
+        self, sql: str, security_context: SecurityContext | None = None
     ) -> SQLValidationResult:
         """
         Validates SQL statement for read-only safety, AST correctness, and permission boundaries.
@@ -31,7 +39,7 @@ class SQLValidator:
             return SQLValidationResult(
                 is_valid=False,
                 error_message="SQL statement cannot be empty",
-                sanitized_sql=""
+                sanitized_sql="",
             )
 
         sql_clean = sql.strip()
@@ -42,7 +50,7 @@ class SQLValidator:
                 return SQLValidationResult(
                     is_valid=False,
                     error_message=f"Security Violation: Forbidden SQL statement type detected ({r.pattern})",
-                    sanitized_sql=""
+                    sanitized_sql="",
                 )
 
         # 2. Must start with SELECT or WITH (for CTEs)
@@ -51,7 +59,7 @@ class SQLValidator:
             return SQLValidationResult(
                 is_valid=False,
                 error_message="Security Violation: Only read-only SELECT queries are permitted",
-                sanitized_sql=""
+                sanitized_sql="",
             )
 
         # 3. Prevent Multi-Statement Execution (Semicolon injection)
@@ -60,7 +68,7 @@ class SQLValidator:
             return SQLValidationResult(
                 is_valid=False,
                 error_message="Security Violation: Multi-statement batch execution is strictly prohibited",
-                sanitized_sql=""
+                sanitized_sql="",
             )
 
         # 4. Row Limit Capping
@@ -71,7 +79,11 @@ class SQLValidator:
         # 5. HITL Trigger check for sensitive tables/columns
         requires_hitl = False
         if "salary" in sql_clean.lower() or "compensation" in sql_clean.lower():
-            user_perms = security_context.permissions if security_context and security_context.permissions else set()
+            user_perms = (
+                security_context.permissions
+                if security_context and security_context.permissions
+                else set()
+            )
             if "hr:admin" not in user_perms:
                 requires_hitl = True
 
@@ -80,5 +92,5 @@ class SQLValidator:
             sanitized_sql=sanitized,
             statement_type="SELECT",
             row_limit_applied=self.max_row_limit,
-            requires_hitl_approval=requires_hitl
+            requires_hitl_approval=requires_hitl,
         )
