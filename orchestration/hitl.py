@@ -3,10 +3,10 @@ RAGTUNE Workflow Orchestration Engine - Human-in-the-Loop Approval Manager
 Manages workflow suspension, approval ticket generation, operator review queues, and resumption.
 """
 
+import threading
 import time
 import uuid
-import threading
-from typing import Dict, Any, List, Optional, Tuple
+
 from pydantic import BaseModel, Field
 
 
@@ -19,15 +19,15 @@ class HITLTicket(BaseModel):
     reason: str
     created_at: float = Field(default_factory=time.time)
     status: str = "PENDING"  # "PENDING", "APPROVED", "REJECTED"
-    operator_id: Optional[str] = None
-    operator_notes: Optional[str] = None
-    resolved_at: Optional[float] = None
+    operator_id: str | None = None
+    operator_notes: str | None = None
+    resolved_at: float | None = None
 
 
 class HumanApprovalManager:
     def __init__(self):
         self._lock = threading.RLock()
-        self._tickets: Dict[str, HITLTicket] = {}
+        self._tickets: dict[str, HITLTicket] = {}
 
     def create_ticket(
         self,
@@ -36,7 +36,7 @@ class HumanApprovalManager:
         workspace_id: str,
         user_query: str,
         reason: str,
-        ticket_id: Optional[str] = None
+        ticket_id: str | None = None,
     ) -> HITLTicket:
         """Creates and registers a new pending HITL review ticket."""
         with self._lock:
@@ -47,12 +47,12 @@ class HumanApprovalManager:
                 tenant_id=tenant_id,
                 workspace_id=workspace_id,
                 user_query=user_query,
-                reason=reason
+                reason=reason,
             )
             self._tickets[t_id] = ticket
             return ticket
 
-    def get_pending_tickets(self, tenant_id: Optional[str] = None) -> List[HITLTicket]:
+    def get_pending_tickets(self, tenant_id: str | None = None) -> list[HITLTicket]:
         """Returns all pending approval tickets, optionally filtered by tenant_id."""
         with self._lock:
             pending = [t for t in self._tickets.values() if t.status == "PENDING"]
@@ -65,8 +65,8 @@ class HumanApprovalManager:
         ticket_id: str,
         operator_id: str,
         decision: str,  # "APPROVED" or "REJECTED"
-        notes: Optional[str] = None
-    ) -> Tuple[bool, Optional[HITLTicket], str]:
+        notes: str | None = None,
+    ) -> tuple[bool, HITLTicket | None, str]:
         """Submits an operator decision ('APPROVED' or 'REJECTED') for a ticket."""
         with self._lock:
             ticket = self._tickets.get(ticket_id)
