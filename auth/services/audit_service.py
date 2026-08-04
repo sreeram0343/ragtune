@@ -4,10 +4,10 @@ Immutably records security events, administrative actions, and access telemetry.
 """
 
 import uuid
-from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Any
+
 from auth.domain.models import AuditEventDomain
-from auth.storage.auth_db import AuthDatabaseRepository, AuditEventORM
+from auth.storage.auth_db import AuditEventORM, AuthDatabaseRepository
 
 
 class AuditService:
@@ -19,12 +19,12 @@ class AuditService:
         actor_id: str,
         event_type: str,
         resource_type: str,
-        resource_id: Optional[str] = None,
-        org_id: Optional[str] = None,
-        workspace_id: Optional[str] = None,
+        resource_id: str | None = None,
+        org_id: str | None = None,
+        workspace_id: str | None = None,
         status: str = "SUCCESS",
-        ip_address: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        ip_address: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> AuditEventDomain:
         """
         Records an immutable audit event entry in storage.
@@ -39,7 +39,7 @@ class AuditService:
             resource_id=resource_id,
             status=status,
             ip_address=ip_address,
-            metadata=metadata or {}
+            metadata=metadata or {},
         )
 
         with self.repo.get_session() as db:
@@ -55,7 +55,7 @@ class AuditService:
                 status=evt.status,
                 ip_address=evt.ip_address,
                 metadata_json=evt.metadata,
-                timestamp=evt.timestamp
+                timestamp=evt.timestamp,
             )
             db.add(orm)
             db.commit()
@@ -64,10 +64,10 @@ class AuditService:
 
     def query_audit_logs(
         self,
-        actor_id: Optional[str] = None,
-        event_type: Optional[str] = None,
-        limit: int = 50
-    ) -> List[AuditEventDomain]:
+        actor_id: str | None = None,
+        event_type: str | None = None,
+        limit: int = 50,
+    ) -> list[AuditEventDomain]:
         """Queries recorded audit logs."""
         with self.repo.get_session() as db:
             q = db.query(AuditEventORM)
@@ -91,7 +91,7 @@ class AuditService:
                     status=r.status,
                     ip_address=r.ip_address,
                     metadata=r.metadata_json or {},
-                    timestamp=r.timestamp
+                    timestamp=r.timestamp,
                 )
                 for r in results
             ]
