@@ -3,8 +3,8 @@ RAGTUNE Enterprise Text-to-SQL Engine - Dialect-Aware SQL Generator
 Synthesizes structured read-only SELECT queries with aggregations, CTEs, and parameterized filters.
 """
 
-import re
-from typing import List, Tuple, Any
+from typing import Any
+
 from text2sql.domain import TableSchema
 
 
@@ -12,7 +12,9 @@ class SQLGenerator:
     def __init__(self, dialect: str = "sqlite"):
         self.dialect = dialect
 
-    def generate_sql(self, query: str, matched_tables: List[TableSchema]) -> Tuple[str, List[Any]]:
+    def generate_sql(
+        self, query: str, matched_tables: list[TableSchema]
+    ) -> tuple[str, list[Any]]:
         """
         Generates dialect-aware SQL query dynamically based on natural language intent.
         """
@@ -77,21 +79,44 @@ class SQLGenerator:
 
         # Aggregation logic
         if is_count:
-            sql = f"SELECT COUNT(*) AS total_records FROM {t_name}{where_sql} LIMIT 100;"
+            sql = (
+                f"SELECT COUNT(*) AS total_records FROM {t_name}{where_sql} LIMIT 100;"
+            )
             return sql, params
 
         if is_sum:
             num_col = None
-            for candidate in ["revenue", "annual_revenue", "order_amount", "contract_limit", "salary"]:
+            for candidate in [
+                "revenue",
+                "annual_revenue",
+                "order_amount",
+                "contract_limit",
+                "salary",
+            ]:
                 if candidate in col_names:
                     num_col = candidate
                     break
             if num_col:
-                if "group by" in q_lower or "by region" in q_lower or "by department" in q_lower or "by tier" in q_lower or "by quarter" in q_lower:
-                    group_col = "region" if "region" in q_lower and "region" in col_names else \
-                                ("department" if "department" in q_lower and "department" in col_names else \
-                                ("quarter" if "quarter" in q_lower and "quarter" in col_names else \
-                                ("tier" if "tier" in col_names else col_names[1])))
+                if (
+                    "group by" in q_lower
+                    or "by region" in q_lower
+                    or "by department" in q_lower
+                    or "by tier" in q_lower
+                    or "by quarter" in q_lower
+                ):
+                    group_col = (
+                        "region"
+                        if "region" in q_lower and "region" in col_names
+                        else (
+                            "department"
+                            if "department" in q_lower and "department" in col_names
+                            else (
+                                "quarter"
+                                if "quarter" in q_lower and "quarter" in col_names
+                                else ("tier" if "tier" in col_names else col_names[1])
+                            )
+                        )
+                    )
                     sql = f"SELECT {group_col}, SUM({num_col}) AS total_value FROM {t_name}{where_sql} GROUP BY {group_col} ORDER BY total_value DESC LIMIT 100;"
                     return sql, params
                 sql = f"SELECT SUM({num_col}) AS total_value FROM {t_name}{where_sql} LIMIT 100;"
@@ -111,7 +136,13 @@ class SQLGenerator:
         order_by_sql = ""
         if is_top or "salary" in q_lower or "revenue" in q_lower or "amount" in q_lower:
             sort_col = None
-            for candidate in ["salary", "annual_revenue", "order_amount", "revenue", "contract_limit"]:
+            for candidate in [
+                "salary",
+                "annual_revenue",
+                "order_amount",
+                "revenue",
+                "contract_limit",
+            ]:
                 if candidate in col_names:
                     sort_col = candidate
                     break
@@ -122,4 +153,3 @@ class SQLGenerator:
         cols_str = ", ".join(col_names)
         sql = f"SELECT {cols_str} FROM {t_name}{where_sql}{order_by_sql} LIMIT {limit};"
         return sql, params
-
