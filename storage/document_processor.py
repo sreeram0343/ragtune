@@ -3,10 +3,11 @@ RAGTUNE - Document Processing & Chunking Engine
 Parses multi-format enterprise documents and creates semantic chunk embeddings.
 """
 
+import json
 import os
 import re
-import json
-from typing import List, Dict, Any, Optional
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -15,7 +16,7 @@ class DocumentChunk(BaseModel):
     doc_id: str
     title: str
     content: str
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
     chunk_index: int
     token_count: int
 
@@ -26,8 +27,12 @@ class DocumentProcessor:
         self.overlap = overlap
 
     def process_text(
-        self, text: str, doc_id: str, title: str, metadata: Optional[Dict[str, Any]] = None
-    ) -> List[DocumentChunk]:
+        self,
+        text: str,
+        doc_id: str,
+        title: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> list[DocumentChunk]:
         """
         Splits raw text into overlapping semantic chunks with metadata tracking.
         """
@@ -36,12 +41,12 @@ class DocumentProcessor:
 
         # Split into paragraph / sentence chunks
         raw_paragraphs = [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()]
-        chunks: List[DocumentChunk] = []
+        chunks: list[DocumentChunk] = []
         chunk_idx = 0
 
-        current_words: List[str] = []
+        current_words: list[str] = []
 
-        def commit_chunk(words_list: List[str]):
+        def commit_chunk(words_list: list[str]):
             nonlocal chunk_idx
             chunk_str = " ".join(words_list)
             c_id = f"{doc_id}_chunk_{chunk_idx}"
@@ -53,7 +58,7 @@ class DocumentProcessor:
                     content=chunk_str,
                     metadata=metadata or {},
                     chunk_index=chunk_idx,
-                    token_count=len(words_list)
+                    token_count=len(words_list),
                 )
             )
             chunk_idx += 1
@@ -66,7 +71,11 @@ class DocumentProcessor:
                 if current_words:
                     commit_chunk(current_words)
                     # Keep overlap
-                    current_words = current_words[-self.overlap:] if self.overlap < len(current_words) else []
+                    current_words = (
+                        current_words[-self.overlap :]
+                        if self.overlap < len(current_words)
+                        else []
+                    )
                 current_words.extend(words)
 
         if current_words:
@@ -74,7 +83,9 @@ class DocumentProcessor:
 
         return chunks
 
-    def process_file(self, file_path: str, doc_id: Optional[str] = None) -> List[DocumentChunk]:
+    def process_file(
+        self, file_path: str, doc_id: str | None = None
+    ) -> list[DocumentChunk]:
         """
         Processes a file on disk (txt, md, json, csv).
         """
@@ -88,7 +99,7 @@ class DocumentProcessor:
         _, ext = os.path.splitext(file_path)
         ext = ext.lower()
 
-        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+        with open(file_path, encoding="utf-8", errors="ignore") as f:
             content = f.read()
 
         if ext == ".json":
@@ -102,5 +113,5 @@ class DocumentProcessor:
             text=content,
             doc_id=d_id,
             title=title,
-            metadata={"source_path": file_path, "file_type": ext}
+            metadata={"source_path": file_path, "file_type": ext},
         )
