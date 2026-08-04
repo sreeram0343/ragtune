@@ -6,6 +6,7 @@ Populates demo SQLite database and sample knowledge documents.
 import os
 import sqlite3
 
+
 def seed_enterprise_db(db_path: str = "demo_data/enterprise_db.sqlite"):
     os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
     conn = sqlite3.connect(db_path)
@@ -74,11 +75,39 @@ def seed_enterprise_db(db_path: str = "demo_data/enterprise_db.sqlite"):
     # Seed Sample Customers
     cursor.execute("DELETE FROM customers;")
     customers = [
-        ("CUST_101", "Acme Enterprise Solutions", "PLATINUM", 14500000.0, "ACTIVE", "NORTH_AMERICA"),
+        (
+            "CUST_101",
+            "Acme Enterprise Solutions",
+            "PLATINUM",
+            14500000.0,
+            "ACTIVE",
+            "NORTH_AMERICA",
+        ),
         ("CUST_102", "Nexus Global Health", "DIAMOND", 32000000.0, "ACTIVE", "EUROPE"),
-        ("CUST_103", "Apex Logistics Corp", "GOLD", 8900000.0, "ACTIVE", "ASIA_PACIFIC"),
-        ("CUST_104", "Starlight Media Group", "SILVER", 4200000.0, "CHURN_RISK", "NORTH_AMERICA"),
-        ("CUST_105", "Vanguard Financial Technologies", "PLATINUM", 21500000.0, "ACTIVE", "NORTH_AMERICA"),
+        (
+            "CUST_103",
+            "Apex Logistics Corp",
+            "GOLD",
+            8900000.0,
+            "ACTIVE",
+            "ASIA_PACIFIC",
+        ),
+        (
+            "CUST_104",
+            "Starlight Media Group",
+            "SILVER",
+            4200000.0,
+            "CHURN_RISK",
+            "NORTH_AMERICA",
+        ),
+        (
+            "CUST_105",
+            "Vanguard Financial Technologies",
+            "PLATINUM",
+            21500000.0,
+            "ACTIVE",
+            "NORTH_AMERICA",
+        ),
     ]
     cursor.executemany("INSERT INTO customers VALUES (?,?,?,?,?,?);", customers)
 
@@ -99,7 +128,14 @@ def seed_enterprise_db(db_path: str = "demo_data/enterprise_db.sqlite"):
     cursor.execute("DELETE FROM contracts;")
     contracts = [
         ("CTR_501", "CUST_101", "PLATINUM_99_99", 500000.0, "2024-01-01", "2025-12-31"),
-        ("CTR_502", "CUST_102", "DIAMOND_99_999", 1500000.0, "2024-01-01", "2026-12-31"),
+        (
+            "CTR_502",
+            "CUST_102",
+            "DIAMOND_99_999",
+            1500000.0,
+            "2024-01-01",
+            "2026-12-31",
+        ),
         ("CTR_503", "CUST_103", "GOLD_99_9", 200000.0, "2024-03-01", "2025-02-28"),
         ("CTR_504", "CUST_105", "PLATINUM_99_99", 800000.0, "2024-06-01", "2026-05-31"),
     ]
@@ -137,7 +173,7 @@ def seed_enterprise_db(db_path: str = "demo_data/enterprise_db.sqlite"):
 
 def seed_sample_documents(docs_dir: str = "demo_data/sample_documents"):
     os.makedirs(docs_dir, exist_ok=True)
-    
+
     # Document 1: Enterprise SLA & Support Terms
     sla_path = os.path.join(docs_dir, "enterprise_sla_terms.md")
     with open(sla_path, "w", encoding="utf-8") as f:
@@ -195,7 +231,6 @@ Data at rest is encrypted using AES-256-GCM. Data in transit across internal ser
 ## 3. Input Security & Threat Defense
 All incoming user prompts pass through an 8-Stage Security Pipeline including Unicode NFKC normalization, Regex SQL Injection scanning, Prompt Injection defense, and PII anonymization.
 """)
-
 
 
 if __name__ == "__main__":
