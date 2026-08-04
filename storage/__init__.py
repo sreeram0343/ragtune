@@ -1,9 +1,12 @@
-from .document_processor import DocumentProcessor, DocumentChunk
+from .db_connector import ColumnMetadata, DBConnector, TableMetadata
+from .document_processor import DocumentChunk, DocumentProcessor
 from .vector_store import HybridVectorStore
-from .db_connector import DBConnector, TableMetadata, ColumnMetadata
 
 __all__ = [
-    "DocumentProcessor", "DocumentChunk",
+    "ColumnMetadata",
+    "DBConnector",
+    "DocumentChunk",
+    "DocumentProcessor",
     "HybridVectorStore",
-    "DBConnector", "TableMetadata", "ColumnMetadata"
+    "TableMetadata",
 ]
