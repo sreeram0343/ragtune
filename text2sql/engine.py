@@ -3,26 +3,34 @@ RAGTUNE Enterprise Text-to-SQL Engine - Master Engine Harness
 Exposes unified execute_structured_query API orchestrating schema discovery, SQL generation, validation, execution, and formatting.
 """
 
-import time
 import json
-from typing import Optional, Dict, Any, List
-from input_security.framework.stage import EnrichedSecurityRequest, SecurityRequestContainer, TrustLevel
+import time
+from typing import Any
+
 from auth.domain.models import SecurityContext, UserStatus
-from text2sql.domain import StructuredSQLResult, SQLExecutionMetrics
-from text2sql.schema import SchemaIntrospector
-from text2sql.generator import SQLGenerator
-from text2sql.validator import SQLValidator
+from auth.domain.permissions import Permission
+from input_security.framework.stage import (
+    EnrichedSecurityRequest,
+    SecurityRequestContainer,
+    TrustLevel,
+)
+from text2sql.domain import SQLExecutionMetrics, StructuredSQLResult
 from text2sql.execution import SQLExecutionEngine
+from text2sql.generator import SQLGenerator
 from text2sql.interpreter import ResultInterpreter
+from text2sql.schema import SchemaIntrospector
+from text2sql.validator import SQLValidator
 
 
 class EnterpriseText2SQLEngine:
     def __init__(
         self,
-        schema_introspector: Optional[Any] = None,
-        db_path: str = "demo_data/enterprise_db.sqlite"
+        schema_introspector: Any | None = None,
+        db_path: str = "demo_data/enterprise_db.sqlite",
     ):
-        if schema_introspector and hasattr(schema_introspector, "match_tables_for_query"):
+        if schema_introspector and hasattr(
+            schema_introspector, "match_tables_for_query"
+        ):
             self.schema_introspector = schema_introspector
         else:
             self.schema_introspector = SchemaIntrospector()
@@ -32,13 +40,16 @@ class EnterpriseText2SQLEngine:
         self.generator = SQLGenerator()
         self.validator = SQLValidator(max_row_limit=100)
         self.execution_engine = SQLExecutionEngine(
-            db_path=db_path if isinstance(db_path, str) else "demo_data/enterprise_db.sqlite"
+            db_path=(
+                db_path
+                if isinstance(db_path, str)
+                else "demo_data/enterprise_db.sqlite"
+            )
         )
         self.interpreter = ResultInterpreter()
 
     def execute_structured_query(
-        self,
-        security_request: EnrichedSecurityRequest
+        self, security_request: EnrichedSecurityRequest
     ) -> StructuredSQLResult:
         """
         Main Structured Query API:
@@ -56,7 +67,9 @@ class EnterpriseText2SQLEngine:
 
         # 2. Multi-Stage SQL Validation & AST Security Check
         t_val_start = time.time()
-        val_result = self.validator.validate_sql(generated_sql, security_context=sec_ctx)
+        val_result = self.validator.validate_sql(
+            generated_sql, security_context=sec_ctx
+        )
         t_val_end = time.time()
 
         if not val_result.is_valid:
@@ -68,14 +81,13 @@ class EnterpriseText2SQLEngine:
                 rows=[[val_result.error_message]],
                 row_count=0,
                 error_message=val_result.error_message,
-                summary_text=f"SQL Validation Failed: {val_result.error_message}"
+                summary_text=f"SQL Validation Failed: {val_result.error_message}",
             )
 
         # 3. Read-Only Execution Engine
         t_exec_start = time.time()
         columns, rows = self.execution_engine.execute_read_only_query(
-            sql=val_result.sanitized_sql,
-            params=params
+            sql=val_result.sanitized_sql, params=params
         )
         t_exec_end = time.time()
 
@@ -85,7 +97,7 @@ class EnterpriseText2SQLEngine:
             generation_latency_ms=round((t_gen_end - t_gen_start) * 1000.0, 2),
             validation_latency_ms=round((t_val_end - t_val_start) * 1000.0, 2),
             execution_latency_ms=round((t_exec_end - t_exec_start) * 1000.0, 2),
-            total_latency_ms=round((time.time() - t0) * 1000.0, 2)
+            total_latency_ms=round((time.time() - t0) * 1000.0, 2),
         )
 
         result = self.interpreter.format_results(
@@ -93,11 +105,13 @@ class EnterpriseText2SQLEngine:
             sql=val_result.sanitized_sql,
             columns=columns,
             rows=rows,
-            metrics=metrics
+            metrics=metrics,
         )
         result.sanitized_sql = val_result.sanitized_sql
         t_fmt_end = time.time()
-        result.metrics.formatting_latency_ms = round((t_fmt_end - t_fmt_start) * 1000.0, 2)
+        result.metrics.formatting_latency_ms = round(
+            (t_fmt_end - t_fmt_start) * 1000.0, 2
+        )
 
         return result
 
@@ -109,12 +123,12 @@ class EnterpriseText2SQLEngine:
             status=UserStatus.ACTIVE,
             org_id="org_acme",
             workspace_id="ws_main",
-            permissions={"workspace:read"}
+            permissions=[Permission.WORKSPACE_READ],
         )
         container = SecurityRequestContainer(
             raw_body=json.dumps({"query": query}).encode("utf-8"),
             user_query=query,
-            user_context=sec_ctx
+            user_context=sec_ctx,
         )
         req = EnrichedSecurityRequest(
             request_id="req_legacy_001",
@@ -124,7 +138,7 @@ class EnterpriseText2SQLEngine:
             security_context=sec_ctx,
             trust_level=TrustLevel.HIGH,
             cumulative_risk_score=0.0,
-            cleared_for_orchestration=True
+            cleared_for_orchestration=True,
         )
         res = self.execute_structured_query(req)
         # For legacy dict row expectation in agents/nodes.py:
