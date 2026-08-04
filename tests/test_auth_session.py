@@ -2,11 +2,10 @@
 RAGTUNE Enterprise Identity & Access Management - Session & Token Test Suite
 """
 
-import pytest
-from auth.storage.auth_db import AuthDatabaseRepository
 from auth.services.audit_service import AuditService
-from auth.services.token_service import TokenService
 from auth.services.identity_service import IdentityService
+from auth.services.token_service import TokenService
+from auth.storage.auth_db import AuthDatabaseRepository
 
 
 def test_refresh_token_rotation_and_revocation():
