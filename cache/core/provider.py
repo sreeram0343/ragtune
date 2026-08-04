@@ -3,20 +3,26 @@ RAGTUNE Intelligent Caching System - Core Provider Abstractions & Storage Adapte
 Defines abstract cache provider interface, thread-safe In-Memory LRU provider, and Redis adapter.
 """
 
-import time
 import threading
+import time
 from abc import ABC, abstractmethod
 from collections import OrderedDict
-from typing import Any, Optional, Dict, List, Set, Tuple
+from typing import Any
 
 
 class BaseCacheProvider(ABC):
     @abstractmethod
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         pass
 
     @abstractmethod
-    def set(self, key: str, value: Any, ttl_seconds: Optional[int] = None, tags: Optional[List[str]] = None) -> bool:
+    def set(
+        self,
+        key: str,
+        value: Any,
+        ttl_seconds: int | None = None,
+        tags: list[str] | None = None,
+    ) -> bool:
         pass
 
     @abstractmethod
@@ -32,7 +38,7 @@ class BaseCacheProvider(ABC):
         pass
 
     @abstractmethod
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         pass
 
 
@@ -41,17 +47,20 @@ class InMemoryLRUCacheProvider(BaseCacheProvider):
     High-performance, Thread-Safe In-Memory LRU Cache Provider.
     Supports capacity eviction, sliding/absolute TTLs, and tag-based invalidation.
     """
+
     def __init__(self, capacity: int = 10000, default_ttl: int = 3600):
         self.capacity = capacity
         self.default_ttl = default_ttl
         self._lock = threading.RLock()
-        self._cache: OrderedDict[str, Tuple[Any, float, float, List[str]]] = OrderedDict()
-        self._tag_to_keys: Dict[str, Set[str]] = {}
+        self._cache: OrderedDict[str, tuple[Any, float, float, list[str]]] = (
+            OrderedDict()
+        )
+        self._tag_to_keys: dict[str, set[str]] = {}
         self._hits = 0
         self._misses = 0
         self._evictions = 0
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         with self._lock:
             if key not in self._cache:
                 self._misses += 1
@@ -70,7 +79,13 @@ class InMemoryLRUCacheProvider(BaseCacheProvider):
             self._hits += 1
             return val
 
-    def set(self, key: str, value: Any, ttl_seconds: Optional[int] = None, tags: Optional[List[str]] = None) -> bool:
+    def set(
+        self,
+        key: str,
+        value: Any,
+        ttl_seconds: int | None = None,
+        tags: list[str] | None = None,
+    ) -> bool:
         with self._lock:
             ttl = ttl_seconds if ttl_seconds is not None else self.default_ttl
             now = time.time()
@@ -132,7 +147,7 @@ class InMemoryLRUCacheProvider(BaseCacheProvider):
             self._tag_to_keys.clear()
             return True
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         with self._lock:
             total = self._hits + self._misses
             hit_ratio = (self._hits / total) if total > 0 else 0.0
@@ -143,17 +158,18 @@ class InMemoryLRUCacheProvider(BaseCacheProvider):
                 "misses": self._misses,
                 "evictions": self._evictions,
                 "hit_ratio": round(hit_ratio, 4),
-                "active_tags": len(self._tag_to_keys)
+                "active_tags": len(self._tag_to_keys),
             }
 
 
 class RedisCacheProvider(BaseCacheProvider):
     """Distributed Redis Cache Provider fallback adapter."""
+
     def __init__(self, redis_client=None):
         self.client = redis_client
         self._fallback = InMemoryLRUCacheProvider(capacity=5000)
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         if self.client:
             try:
                 val = self.client.get(key)
@@ -162,7 +178,13 @@ class RedisCacheProvider(BaseCacheProvider):
                 pass
         return self._fallback.get(key)
 
-    def set(self, key: str, value: Any, ttl_seconds: Optional[int] = None, tags: Optional[List[str]] = None) -> bool:
+    def set(
+        self,
+        key: str,
+        value: Any,
+        ttl_seconds: int | None = None,
+        tags: list[str] | None = None,
+    ) -> bool:
         if self.client:
             try:
                 self.client.set(key, value, ex=ttl_seconds)
@@ -180,5 +202,5 @@ class RedisCacheProvider(BaseCacheProvider):
     def clear(self) -> bool:
         return self._fallback.clear()
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         return self._fallback.get_stats()
