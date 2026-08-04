@@ -3,9 +3,8 @@ RAGTUNE Intelligent Caching System - Telemetry & Cost Savings Tracker
 Tracks cache hit/miss statistics, latency reductions, stampede blocks, and estimated LLM cost savings.
 """
 
-import time
 import threading
-from typing import Dict, Any
+from typing import Any
 
 ESTIMATED_COST_PER_LLM_CALL = 0.003  # $0.003 average savings per cached LLM response
 
@@ -24,7 +23,9 @@ class CacheTelemetryTracker:
             self._exact_hits += 1
             self._total_latency_saved_ms += latency_saved_ms
 
-    def record_semantic_hit(self, similarity_score: float, latency_saved_ms: float = 250.0):
+    def record_semantic_hit(
+        self, similarity_score: float, latency_saved_ms: float = 250.0
+    ):
         with self._lock:
             self._semantic_hits += 1
             self._total_latency_saved_ms += latency_saved_ms
@@ -37,7 +38,7 @@ class CacheTelemetryTracker:
         with self._lock:
             self._stampede_blocks += 1
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         with self._lock:
             total_hits = self._exact_hits + self._semantic_hits
             total_requests = total_hits + self._misses
@@ -52,6 +53,8 @@ class CacheTelemetryTracker:
                 "total_requests": total_requests,
                 "hit_ratio": round(hit_ratio, 4),
                 "stampede_blocks": self._stampede_blocks,
-                "total_latency_saved_sec": round(self._total_latency_saved_ms / 1000.0, 2),
-                "estimated_cost_savings_usd": estimated_cost_savings
+                "total_latency_saved_sec": round(
+                    self._total_latency_saved_ms / 1000.0, 2
+                ),
+                "estimated_cost_savings_usd": estimated_cost_savings,
             }
