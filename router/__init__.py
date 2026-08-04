@@ -1,12 +1,20 @@
-from .domain import IntentCategory, PlanningStrategy, CapabilityType, CapabilityMetadata
-from .registry import CapabilityRegistry
 from .classifier import IntentClassifier
 from .decision import IntentDecisionEngine
+from .domain import CapabilityMetadata, CapabilityType, IntentCategory, PlanningStrategy
 from .plan import ExecutionPlan, ExecutionStage, ExecutionTask
 from .planner import QueryPlanner
+from .registry import CapabilityRegistry
 
 __all__ = [
-    "IntentCategory", "PlanningStrategy", "CapabilityType", "CapabilityMetadata",
-    "CapabilityRegistry", "IntentClassifier", "IntentDecisionEngine",
-    "ExecutionPlan", "ExecutionStage", "ExecutionTask", "QueryPlanner"
+    "CapabilityMetadata",
+    "CapabilityRegistry",
+    "CapabilityType",
+    "ExecutionPlan",
+    "ExecutionStage",
+    "ExecutionTask",
+    "IntentCategory",
+    "IntentClassifier",
+    "IntentDecisionEngine",
+    "PlanningStrategy",
+    "QueryPlanner",
 ]
