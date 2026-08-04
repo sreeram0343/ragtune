@@ -3,10 +3,13 @@ RAGTUNE Intelligent Caching System - Comprehensive Test Suite
 Tests L1 Exact Cache, L2 Semantic Cache, Single-Flight Coalescing, Tag Invalidation, and Multi-Tenant Isolation.
 """
 
-import pytest
-import time
 import threading
-from cache import IntelligentCacheManager, InMemoryLRUCacheProvider, TenantCacheKeyBuilder
+import time
+
+from cache import (
+    IntelligentCacheManager,
+    TenantCacheKeyBuilder,
+)
 
 
 def test_l1_exact_match_cache():
@@ -24,7 +27,7 @@ def test_l1_exact_match_cache():
         workspace_id="ws_sales",
         namespace="sql",
         payload={"query": "What were Q3 sales?"},
-        compute_fn=mock_compute
+        compute_fn=mock_compute,
     )
     assert status1 == "CACHE_MISS"
     assert res1["total"] == 150000
@@ -36,7 +39,7 @@ def test_l1_exact_match_cache():
         workspace_id="ws_sales",
         namespace="sql",
         payload={"query": "What were Q3 sales?"},
-        compute_fn=mock_compute
+        compute_fn=mock_compute,
     )
     assert status2 == "L1_EXACT_HIT"
     assert res2["total"] == 150000
@@ -59,7 +62,7 @@ def test_l2_semantic_vector_cache():
         namespace="rag",
         payload={"query": "What is our company travel policy per diem?"},
         compute_fn=mock_compute,
-        user_query="What is our company travel policy per diem?"
+        user_query="What is our company travel policy per diem?",
     )
     assert call_count == 1
 
@@ -70,7 +73,7 @@ def test_l2_semantic_vector_cache():
         namespace="rag",
         payload={"query": "What is our company travel policy per diem?"},
         compute_fn=mock_compute,
-        user_query="What is our company travel policy per diem?"
+        user_query="What is our company travel policy per diem?",
     )
 
     assert "HIT" in status_sem
@@ -98,7 +101,7 @@ def test_single_flight_stampede_coalescing():
             workspace_id="ws_main",
             namespace="llm",
             payload={"query": "Heavy reasoning task"},
-            compute_fn=slow_compute
+            compute_fn=slow_compute,
         )
         results.append(res)
 
@@ -129,7 +132,7 @@ def test_tag_based_event_invalidation():
         namespace="retrieval",
         payload={"doc_id": "doc_101"},
         compute_fn=compute_doc,
-        tags=[tag_doc]
+        tags=[tag_doc],
     )
 
     # Verify L1 Hit
@@ -138,12 +141,14 @@ def test_tag_based_event_invalidation():
         workspace_id="ws_main",
         namespace="retrieval",
         payload={"doc_id": "doc_101"},
-        compute_fn=compute_doc
+        compute_fn=compute_doc,
     )
     assert status1 == "L1_EXACT_HIT"
 
     # Trigger document update event
-    flushed_count = cache.handle_event("document:updated", {"tenant_id": "acme_corp", "document_id": "doc_101"})
+    flushed_count = cache.handle_event(
+        "document:updated", {"tenant_id": "acme_corp", "document_id": "doc_101"}
+    )
     assert flushed_count >= 1
 
     # Verify Miss after invalidation
@@ -159,7 +164,7 @@ def test_tag_based_event_invalidation():
         workspace_id="ws_main",
         namespace="retrieval",
         payload={"doc_id": "doc_101"},
-        compute_fn=compute_fresh
+        compute_fn=compute_fresh,
     )
     assert status2 == "CACHE_MISS"
     assert counter == 1
@@ -174,7 +179,7 @@ def test_multi_tenant_security_isolation():
         workspace_id="ws_1",
         namespace="sql",
         payload={"query": "SELECT * FROM sales"},
-        compute_fn=lambda: "Tenant A Confidential Data"
+        compute_fn=lambda: "Tenant A Confidential Data",
     )
 
     # Tenant B queries identical payload
@@ -183,7 +188,7 @@ def test_multi_tenant_security_isolation():
         workspace_id="ws_1",
         namespace="sql",
         payload={"query": "SELECT * FROM sales"},
-        compute_fn=lambda: "Tenant B Data"
+        compute_fn=lambda: "Tenant B Data",
     )
 
     assert status_b == "CACHE_MISS"
