@@ -4,14 +4,18 @@ Validates Bearer access token, DB session, and active user account status.
 """
 
 import time
-from input_security.framework.stage import (
-    BaseSecurityStage, StageResult, SecurityRequestContainer, SecurityViolationException
-)
-from auth.security.jwt_handler import JWTHandler
-from auth.storage.auth_db import AuthDatabaseRepository
-from auth.services.authorization_service import AuthorizationService
+
 from auth.domain.models import SecurityContext, UserStatus
 from auth.domain.permissions import OrgRole, WorkspaceRole
+from auth.security.jwt_handler import JWTHandler
+from auth.services.authorization_service import AuthorizationService
+from auth.storage.auth_db import AuthDatabaseRepository
+from input_security.framework.stage import (
+    BaseSecurityStage,
+    SecurityRequestContainer,
+    SecurityViolationException,
+    StageResult,
+)
 
 # Endpoints exempt from mandatory Bearer authentication (public endpoints)
 PUBLIC_EXEMPT_PATHS = [
@@ -21,7 +25,7 @@ PUBLIC_EXEMPT_PATHS = [
     "/api/v1/auth/refresh",
     "/api/v1/auth/invitations/accept",
     "/static",
-    "/"
+    "/",
 ]
 
 
@@ -39,7 +43,9 @@ class AuthVerificationStage(BaseSecurityStage):
         # Check if path is exempt from authentication
         path_clean = container.path.split("?")[0]
         if any(path_clean.startswith(p) for p in PUBLIC_EXEMPT_PATHS):
-            audit_notes.append(f"Path '{path_clean}' is exempt from mandatory authentication")
+            audit_notes.append(
+                f"Path '{path_clean}' is exempt from mandatory authentication"
+            )
             return StageResult(
                 stage_id=self.stage_id,
                 stage_name=self.stage_name,
@@ -47,17 +53,19 @@ class AuthVerificationStage(BaseSecurityStage):
                 threat_score=0.0,
                 sanitized_payload=container.parsed_payload,
                 audit_notes=audit_notes,
-                execution_time_ms=round((time.time() - t0) * 1000, 2)
+                execution_time_ms=round((time.time() - t0) * 1000, 2),
             )
 
         # Extract Authorization header
-        auth_header = container.headers.get("authorization") or container.headers.get("Authorization")
+        auth_header = container.headers.get("authorization") or container.headers.get(
+            "Authorization"
+        )
         if not auth_header or not auth_header.startswith("Bearer "):
             raise SecurityViolationException(
                 message="Authentication credentials (Bearer token) required",
                 status_code=401,
                 stage_name=self.stage_name,
-                risk_score=100.0
+                risk_score=100.0,
             )
 
         token = auth_header.replace("Bearer ", "").strip()
@@ -68,10 +76,17 @@ class AuthVerificationStage(BaseSecurityStage):
                 message=f"Authentication token verification failed: {msg}",
                 status_code=401,
                 stage_name=self.stage_name,
-                risk_score=90.0
+                risk_score=90.0,
             )
 
         user_id = claims.get("sub")
+        if not user_id or not isinstance(user_id, str):
+            raise SecurityViolationException(
+                message="Invalid token claims: sub missing or invalid",
+                status_code=401,
+                stage_name=self.stage_name,
+                risk_score=90.0,
+            )
         user = self.db.get_user_by_id(user_id)
 
         if not user:
@@ -79,7 +94,7 @@ class AuthVerificationStage(BaseSecurityStage):
                 message="Authenticated user account not found in database",
                 status_code=401,
                 stage_name=self.stage_name,
-                risk_score=100.0
+                risk_score=100.0,
             )
 
         if user.status == UserStatus.SUSPENDED:
@@ -87,7 +102,7 @@ class AuthVerificationStage(BaseSecurityStage):
                 message="User account has been administratively suspended",
                 status_code=403,
                 stage_name=self.stage_name,
-                risk_score=100.0
+                risk_score=100.0,
             )
 
         org_role = OrgRole(claims["org_role"]) if claims.get("org_role") else None
@@ -105,7 +120,7 @@ class AuthVerificationStage(BaseSecurityStage):
             workspace_role=ws_role,
             permissions=effective_perms,
             session_id=claims.get("sid"),
-            ip_address=container.client_ip
+            ip_address=container.client_ip,
         )
 
         container.user_context = sec_ctx
@@ -119,5 +134,5 @@ class AuthVerificationStage(BaseSecurityStage):
             threat_score=0.0,
             sanitized_payload=container.parsed_payload,
             audit_notes=audit_notes,
-            execution_time_ms=round(latency, 2)
+            execution_time_ms=round(latency, 2),
         )
