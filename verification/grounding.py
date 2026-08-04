@@ -4,16 +4,14 @@ Evaluates sentence-by-sentence factual grounding against source document chunks 
 """
 
 import re
-from typing import List, Tuple, Any
+
 from verification.domain import VerificationClaim
 
 
 class GroundednessVerifier:
     def verify_grounding(
-        self,
-        response_narrative: str,
-        source_contexts: List[str]
-    ) -> Tuple[List[VerificationClaim], float, float]:
+        self, response_narrative: str, source_contexts: list[str]
+    ) -> tuple[list[VerificationClaim], float, float]:
         """
         Splits response narrative into sentence claims and evaluates grounding against source context.
         Returns (claims, groundedness_score, citation_coverage).
@@ -22,12 +20,16 @@ class GroundednessVerifier:
             return [], 1.0, 1.0
 
         # Split into statements / markdown lines
-        lines = [s.strip() for s in response_narrative.split("\n") if s.strip() and not s.strip().startswith("| ---")]
+        lines = [
+            s.strip()
+            for s in response_narrative.split("\n")
+            if s.strip() and not s.strip().startswith("| ---")
+        ]
         if not lines:
             return [], 1.0, 1.0
 
         context_blob = " ".join(source_contexts).lower() if source_contexts else ""
-        claims: List[VerificationClaim] = []
+        claims: list[VerificationClaim] = []
         grounded_count = 0
         cited_count = 0
 
@@ -36,7 +38,13 @@ class GroundednessVerifier:
             tokens = [t for t in re.findall(r"\w+", stmt_lower) if len(t) > 2]
 
             # Check evidence overlap
-            if not tokens or not context_blob or stmt.startswith("|") or "###" in stmt or "sql" in stmt_lower:
+            if (
+                not tokens
+                or not context_blob
+                or stmt.startswith("|")
+                or "###" in stmt
+                or "sql" in stmt_lower
+            ):
                 is_grounded = True
                 confidence = 0.95
             else:
@@ -48,7 +56,14 @@ class GroundednessVerifier:
             if is_grounded:
                 grounded_count += 1
 
-            if "cite_" in stmt_lower or "source:" in stmt_lower or "record" in stmt_lower or "finding" in stmt_lower or "evidence" in stmt_lower or stmt.startswith("|"):
+            if (
+                "cite_" in stmt_lower
+                or "source:" in stmt_lower
+                or "record" in stmt_lower
+                or "finding" in stmt_lower
+                or "evidence" in stmt_lower
+                or stmt.startswith("|")
+            ):
                 cited_count += 1
 
             claims.append(
@@ -57,12 +72,13 @@ class GroundednessVerifier:
                     statement_text=stmt,
                     is_grounded=is_grounded,
                     supporting_citation_id=f"cite_{i}" if is_grounded else None,
-                    confidence=confidence
+                    confidence=confidence,
                 )
             )
 
         groundedness_score = round(grounded_count / float(len(lines)), 2)
-        citation_coverage = round(max(cited_count / float(len(lines)), groundedness_score), 2)
+        citation_coverage = round(
+            max(cited_count / float(len(lines)), groundedness_score), 2
+        )
 
         return claims, groundedness_score, citation_coverage
-
