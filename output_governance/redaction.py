@@ -4,9 +4,9 @@ Detects and redacts PII, API keys, passwords, and secrets with permission-aware 
 """
 
 import re
-from typing import Tuple, List, Optional
-from output_governance.domain import RedactionRecord
+
 from auth.domain.models import SecurityContext
+from output_governance.domain import RedactionRecord
 
 # Sensitive data patterns
 EMAIL_PATTERN = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
@@ -17,10 +17,8 @@ API_KEY_PATTERN = r"\b(?:sk-[A-Za-z0-9_\-]{20,}|AKIA[0-9A-Z]{16})\b"
 
 class SensitiveDataRedactor:
     def sanitize_output(
-        self,
-        content: str,
-        security_context: Optional[SecurityContext] = None
-    ) -> Tuple[str, List[RedactionRecord]]:
+        self, content: str, security_context: SecurityContext | None = None
+    ) -> tuple[str, list[RedactionRecord]]:
         """
         Scans narrative for PII and secrets, applying permission-aware masking.
         Returns (sanitized_content, redaction_records).
@@ -28,13 +26,17 @@ class SensitiveDataRedactor:
         if not content:
             return "", []
 
-        user_perms = security_context.permissions if security_context and security_context.permissions else set()
+        user_perms = (
+            security_context.permissions
+            if security_context and security_context.permissions
+            else set()
+        )
         # Admin bypass role check
         if "security:admin" in user_perms:
             return content, []
 
         sanitized = content
-        records: List[RedactionRecord] = []
+        records: list[RedactionRecord] = []
 
         # 1. API Keys Redaction
         api_matches = list(re.finditer(API_KEY_PATTERN, sanitized))
@@ -45,7 +47,7 @@ class SensitiveDataRedactor:
                     field_name="api_key",
                     data_type="API_KEY",
                     masked_placeholder="[REDACTED_API_KEY]",
-                    count=len(api_matches)
+                    count=len(api_matches),
                 )
             )
 
@@ -58,7 +60,7 @@ class SensitiveDataRedactor:
                     field_name="ssn",
                     data_type="SSN",
                     masked_placeholder="[REDACTED_SSN]",
-                    count=len(ssn_matches)
+                    count=len(ssn_matches),
                 )
             )
 
@@ -72,7 +74,7 @@ class SensitiveDataRedactor:
                         field_name="email",
                         data_type="EMAIL",
                         masked_placeholder="[REDACTED_EMAIL]",
-                        count=len(email_matches)
+                        count=len(email_matches),
                     )
                 )
 
