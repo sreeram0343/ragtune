@@ -5,29 +5,31 @@ Combines Dense Vector Cosine Similarity and Sparse BM25 Search via Reciprocal Ra
 
 import math
 import re
-from typing import List, Dict, Tuple, Any, Optional
+from typing import Any
+
 import numpy as np
+
 from storage.document_processor import DocumentChunk
 
 
 class HybridVectorStore:
     def __init__(self, embedding_dim: int = 384):
         self.embedding_dim = embedding_dim
-        self.chunks: List[DocumentChunk] = []
-        self.chunk_map: Dict[str, DocumentChunk] = {}
-        
+        self.chunks: list[DocumentChunk] = []
+        self.chunk_map: dict[str, DocumentChunk] = {}
+
         # Dense vectors matrix
-        self.dense_vectors: List[np.ndarray] = []
-        
+        self.dense_vectors: list[np.ndarray] = []
+
         # Sparse BM25 index components
-        self.doc_freqs: Dict[str, int] = {}
+        self.doc_freqs: dict[str, int] = {}
         self.corpus_size: int = 0
         self.avg_doc_len: float = 0.0
-        self.tokenized_corpus: List[List[str]] = []
+        self.tokenized_corpus: list[list[str]] = []
         self.k1: float = 1.5
         self.b: float = 0.75
 
-    def _tokenize(self, text: str) -> List[str]:
+    def _tokenize(self, text: str) -> list[str]:
         """Simple tokenization for BM25 indexing."""
         return re.findall(r"\b[a-zA-Z0-9]+\b", text.lower())
 
@@ -54,7 +56,7 @@ class HybridVectorStore:
             vec = vec / norm
         return vec
 
-    def add_chunks(self, chunks: List[DocumentChunk]):
+    def add_chunks(self, chunks: list[DocumentChunk]):
         """Adds DocumentChunk objects to both Dense and Sparse indices."""
         for chunk in chunks:
             if chunk.chunk_id in self.chunk_map:
@@ -81,14 +83,16 @@ class HybridVectorStore:
             total_len = sum(len(t) for t in self.tokenized_corpus)
             self.avg_doc_len = total_len / self.corpus_size
 
-    def search_dense(self, query: str, top_k: int = 10) -> List[Tuple[DocumentChunk, float]]:
+    def search_dense(
+        self, query: str, top_k: int = 10
+    ) -> list[tuple[DocumentChunk, float]]:
         """Dense Cosine Similarity Search."""
         if not self.chunks:
             return []
 
         query_vec = self._generate_deterministic_embedding(query)
         matrix = np.array(self.dense_vectors)
-        
+
         # Cosine similarity (since vectors are normalized)
         similarities = np.dot(matrix, query_vec)
         top_indices = np.argsort(similarities)[::-1][:top_k]
@@ -100,7 +104,9 @@ class HybridVectorStore:
 
         return results
 
-    def search_sparse_bm25(self, query: str, top_k: int = 10) -> List[Tuple[DocumentChunk, float]]:
+    def search_sparse_bm25(
+        self, query: str, top_k: int = 10
+    ) -> list[tuple[DocumentChunk, float]]:
         """Sparse BM25 Search."""
         if not self.chunks or self.corpus_size == 0:
             return []
@@ -122,7 +128,9 @@ class HybridVectorStore:
 
                 doc_len = len(doc_tokens)
                 num = tf * (self.k1 + 1)
-                den = tf + self.k1 * (1 - self.b + self.b * (doc_len / (self.avg_doc_len or 1.0)))
+                den = tf + self.k1 * (
+                    1 - self.b + self.b * (doc_len / (self.avg_doc_len or 1.0))
+                )
                 scores[idx] += idf * (num / den)
 
         top_indices = np.argsort(scores)[::-1][:top_k]
@@ -136,7 +144,7 @@ class HybridVectorStore:
 
     def search_hybrid(
         self, query: str, top_k: int = 5, rrf_k: float = 60.0
-    ) -> List[Tuple[DocumentChunk, float]]:
+    ) -> list[tuple[DocumentChunk, float]]:
         """
         Combines Dense and Sparse Search using Reciprocal Rank Fusion (RRF).
         RRF Score = 1 / (k + rank_dense) + 1 / (k + rank_sparse)
@@ -144,17 +152,23 @@ class HybridVectorStore:
         dense_hits = self.search_dense(query, top_k=top_k * 2)
         sparse_hits = self.search_sparse_bm25(query, top_k=top_k * 2)
 
-        rrf_scores: Dict[str, float] = {}
+        rrf_scores: dict[str, float] = {}
 
         # Rank dense
         for rank, (chunk, score) in enumerate(dense_hits, start=1):
-            rrf_scores[chunk.chunk_id] = rrf_scores.get(chunk.chunk_id, 0.0) + (1.0 / (rrf_k + rank))
+            rrf_scores[chunk.chunk_id] = rrf_scores.get(chunk.chunk_id, 0.0) + (
+                1.0 / (rrf_k + rank)
+            )
 
         # Rank sparse
         for rank, (chunk, score) in enumerate(sparse_hits, start=1):
-            rrf_scores[chunk.chunk_id] = rrf_scores.get(chunk.chunk_id, 0.0) + (1.0 / (rrf_k + rank))
+            rrf_scores[chunk.chunk_id] = rrf_scores.get(chunk.chunk_id, 0.0) + (
+                1.0 / (rrf_k + rank)
+            )
 
-        sorted_chunks = sorted(rrf_scores.items(), key=lambda x: x[1], reverse=True)[:top_k]
+        sorted_chunks = sorted(rrf_scores.items(), key=lambda x: x[1], reverse=True)[
+            :top_k
+        ]
 
         results = []
         for chunk_id, rrf_score in sorted_chunks:
@@ -162,18 +176,26 @@ class HybridVectorStore:
 
         return results
 
-    def list_documents(self) -> List[Dict[str, Any]]:
+    def list_documents(self) -> list[dict[str, Any]]:
         """Returns a summarized list of all indexed documents and chunk statistics."""
-        doc_groups: Dict[str, Dict[str, Any]] = {}
+        doc_groups: dict[str, dict[str, Any]] = {}
         for chunk in self.chunks:
             d_id = chunk.metadata.get("doc_id") or chunk.chunk_id
-            title = chunk.metadata.get("title") or chunk.metadata.get("file_name") or "Document"
+            title = (
+                chunk.metadata.get("title")
+                or chunk.metadata.get("file_name")
+                or "Document"
+            )
             if d_id not in doc_groups:
                 doc_groups[d_id] = {
                     "doc_id": d_id,
                     "title": title,
                     "chunks_count": 0,
-                    "sample_text": chunk.content[:150] + "..." if len(chunk.content) > 150 else chunk.content
+                    "sample_text": (
+                        chunk.content[:150] + "..."
+                        if len(chunk.content) > 150
+                        else chunk.content
+                    ),
                 }
             doc_groups[d_id]["chunks_count"] += 1
 
@@ -222,4 +244,3 @@ class HybridVectorStore:
             self.avg_doc_len = 0.0
 
         return removed_count
-
