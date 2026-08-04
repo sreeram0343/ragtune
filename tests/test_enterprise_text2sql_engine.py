@@ -3,30 +3,36 @@ RAGTUNE Enterprise Text-to-SQL Engine - Comprehensive Test Suite
 Tests schema introspection, SQL generation, AST security validation, row limit capping, read-only DB execution, and result formatting.
 """
 
-import pytest
 import json
-from input_security.framework.stage import SecurityRequestContainer, EnrichedSecurityRequest, TrustLevel
+
 from auth.domain.models import SecurityContext, UserStatus
+from input_security.framework.stage import (
+    EnrichedSecurityRequest,
+    SecurityRequestContainer,
+    TrustLevel,
+)
 from text2sql import (
-    EnterpriseText2SQLEngine, SQLValidator, SchemaIntrospector, SQLGenerator,
-    SQLExecutionEngine, ResultInterpreter, TableSchema, ColumnSchema
+    EnterpriseText2SQLEngine,
+    SQLValidator,
 )
 
 
-def _build_dummy_security_request(query: str, permissions=None) -> EnrichedSecurityRequest:
+def _build_dummy_security_request(
+    query: str, permissions=None
+) -> EnrichedSecurityRequest:
     sec_ctx = SecurityContext(
         user_id="usr_sql_test",
         email="sql@enterprise.com",
         status=UserStatus.ACTIVE,
         org_id="org_acme",
         workspace_id="ws_main",
-        permissions=permissions or {"workspace:read"}
+        permissions=permissions or {"workspace:read"},
     )
 
     container = SecurityRequestContainer(
         raw_body=json.dumps({"query": query}).encode("utf-8"),
         user_query=query,
-        user_context=sec_ctx
+        user_context=sec_ctx,
     )
 
     return EnrichedSecurityRequest(
@@ -37,7 +43,7 @@ def _build_dummy_security_request(query: str, permissions=None) -> EnrichedSecur
         security_context=sec_ctx,
         trust_level=TrustLevel.HIGH,
         cumulative_risk_score=0.0,
-        cleared_for_orchestration=True
+        cleared_for_orchestration=True,
     )
 
 
@@ -90,8 +96,13 @@ def test_hitl_approval_trigger_for_sensitive_salary_data():
     validator = SQLValidator()
 
     # User lacking 'hr:admin' permission triggers HITL requirement
-    req = _build_dummy_security_request("Show employee salary records", permissions={"workspace:read"})
-    val = validator.validate_sql("SELECT employee_id, salary FROM employees;", security_context=req.security_context)
+    req = _build_dummy_security_request(
+        "Show employee salary records", permissions={"workspace:read"}
+    )
+    val = validator.validate_sql(
+        "SELECT employee_id, salary FROM employees;",
+        security_context=req.security_context,
+    )
 
     assert val.is_valid is True
     assert val.requires_hitl_approval is True
