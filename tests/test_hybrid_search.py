@@ -2,11 +2,10 @@
 RAGTUNE - Test Suite for Hybrid Search & Re-Ranking Engine
 """
 
-import pytest
-from storage.document_processor import DocumentProcessor
-from storage.vector_store import HybridVectorStore
 from retrieval.hybrid_search import HybridSearchEngine
 from retrieval.reranker import CrossEncoderReranker
+from storage.document_processor import DocumentProcessor
+from storage.vector_store import HybridVectorStore
 
 
 def test_hybrid_search_and_rerank():
@@ -16,7 +15,7 @@ def test_hybrid_search_and_rerank():
     chunks = proc.process_text(
         text="RAGTUNE provides 99.99% uptime commitment under Platinum SLA terms.",
         doc_id="doc_sla",
-        title="Enterprise SLA Policy"
+        title="Enterprise SLA Policy",
     )
     store.add_chunks(chunks)
 
