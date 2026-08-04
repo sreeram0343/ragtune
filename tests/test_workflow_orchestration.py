@@ -3,12 +3,16 @@ RAGTUNE Workflow Orchestration Engine - Comprehensive Test Suite
 Tests LangGraph StateGraph compilation, routing, state checkpointing, HITL pause/resume, and retries.
 """
 
-import pytest
 import json
-from input_security.framework.stage import SecurityRequestContainer, EnrichedSecurityRequest, TrustLevel
+
 from auth.domain.models import SecurityContext, UserStatus
-from orchestration.state import WorkflowStatusEnum
+from input_security.framework.stage import (
+    EnrichedSecurityRequest,
+    SecurityRequestContainer,
+    TrustLevel,
+)
 from orchestration.engine import WorkflowOrchestrationEngine
+from orchestration.state import WorkflowStatusEnum
 
 
 def _build_dummy_security_request(query: str) -> EnrichedSecurityRequest:
@@ -17,13 +21,13 @@ def _build_dummy_security_request(query: str) -> EnrichedSecurityRequest:
         email="test@enterprise.com",
         status=UserStatus.ACTIVE,
         org_id="org_acme",
-        workspace_id="ws_sales"
+        workspace_id="ws_sales",
     )
 
     container = SecurityRequestContainer(
         raw_body=json.dumps({"query": query}).encode("utf-8"),
         user_query=query,
-        user_context=sec_ctx
+        user_context=sec_ctx,
     )
 
     return EnrichedSecurityRequest(
@@ -34,7 +38,7 @@ def _build_dummy_security_request(query: str) -> EnrichedSecurityRequest:
         security_context=sec_ctx,
         trust_level=TrustLevel.HIGH,
         cumulative_risk_score=0.0,
-        cleared_for_orchestration=True
+        cleared_for_orchestration=True,
     )
 
 
@@ -66,7 +70,9 @@ def test_rag_workflow_routing_and_completion():
 def test_hitl_suspension_and_operator_approval_resumption():
     engine = WorkflowOrchestrationEngine()
     # Query containing 'sensitive' triggers low evaluation score & HITL requirement
-    req = _build_dummy_security_request("What is sensitive executive compensation override?")
+    req = _build_dummy_security_request(
+        "What is sensitive executive compensation override?"
+    )
 
     # 1. Execute initial workflow -> Suspends at HITL Gate
     state1 = engine.execute_workflow(req)
@@ -88,7 +94,7 @@ def test_hitl_suspension_and_operator_approval_resumption():
         workflow_id=workflow_id,
         operator_id="operator_admin_01",
         decision="APPROVED",
-        notes="Verified executive query context"
+        notes="Verified executive query context",
     )
 
     assert ok is True
@@ -109,11 +115,14 @@ def test_hitl_suspension_and_operator_rejection_resumption():
         workflow_id=state1["workflow_id"],
         operator_id="operator_admin_01",
         decision="REJECTED",
-        notes="Unauthorized sensitive query attempt"
+        notes="Unauthorized sensitive query attempt",
     )
 
     assert ok is True
-    assert state2["status"] == WorkflowStatusEnum.FAILED.value or state2["status"] == WorkflowStatusEnum.REJECTED.value
+    assert (
+        state2["status"] == WorkflowStatusEnum.FAILED.value
+        or state2["status"] == WorkflowStatusEnum.REJECTED.value
+    )
     assert "rejected" in state2["final_response"].lower()
 
 
