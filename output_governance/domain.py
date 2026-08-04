@@ -3,12 +3,12 @@ RAGTUNE Output Security & Response Governance Engine - Domain Models
 Defines policy decisions, redaction records, governance metadata, and API envelope models.
 """
 
-from enum import Enum
-from typing import List, Dict, Any, Optional
+from enum import StrEnum
+
 from pydantic import BaseModel, Field
 
 
-class PolicyDecision(str, Enum):
+class PolicyDecision(StrEnum):
     ALLOW = "ALLOW"
     WARN_AND_ALLOW = "WARN_AND_ALLOW"
     BLOCK = "BLOCK"
@@ -38,7 +38,7 @@ class GovernedResponseEnvelope(BaseModel):
     status: str = "SUCCESS"
     formatted_content: str
     original_format: str = "MARKDOWN"
-    redactions: List[RedactionRecord] = Field(default_factory=list)
+    redactions: list[RedactionRecord] = Field(default_factory=list)
     metadata: GovernanceMetadata
     policy_decision: PolicyDecision = PolicyDecision.ALLOW
     explanation: str = ""
