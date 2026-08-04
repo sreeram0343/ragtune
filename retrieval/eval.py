@@ -4,13 +4,15 @@ Calculates Information Retrieval metrics including Precision@K, Recall@K, MRR, a
 """
 
 import math
-from typing import List, Set
+
 from retrieval.domain import SearchCandidate
 
 
 class RetrievalEvaluator:
     @staticmethod
-    def calculate_precision_at_k(retrieved: List[SearchCandidate], relevant_ids: Set[str], k: int = 5) -> float:
+    def calculate_precision_at_k(
+        retrieved: list[SearchCandidate], relevant_ids: set[str], k: int = 5
+    ) -> float:
         """Calculates Precision@K = (Relevant & Retrieved) / K."""
         if not retrieved or k <= 0:
             return 0.0
@@ -19,7 +21,9 @@ class RetrievalEvaluator:
         return hits / float(min(k, len(top_k)))
 
     @staticmethod
-    def calculate_mrr_at_k(retrieved: List[SearchCandidate], relevant_ids: Set[str], k: int = 5) -> float:
+    def calculate_mrr_at_k(
+        retrieved: list[SearchCandidate], relevant_ids: set[str], k: int = 5
+    ) -> float:
         """Calculates Mean Reciprocal Rank MRR@K = 1 / rank_of_first_hit."""
         if not retrieved or k <= 0:
             return 0.0
@@ -29,7 +33,9 @@ class RetrievalEvaluator:
         return 0.0
 
     @staticmethod
-    def calculate_ndcg_at_k(retrieved: List[SearchCandidate], relevant_ids: Set[str], k: int = 5) -> float:
+    def calculate_ndcg_at_k(
+        retrieved: list[SearchCandidate], relevant_ids: set[str], k: int = 5
+    ) -> float:
         """Calculates Normalized Discounted Cumulative Gain (nDCG@K)."""
         if not retrieved or k <= 0 or not relevant_ids:
             return 0.0
@@ -40,7 +46,9 @@ class RetrievalEvaluator:
                 dcg += 1.0 / math.log2(rank + 1)
 
         # Calculate Ideal DCG (IDCG)
-        idcg = sum(1.0 / math.log2(r + 1) for r in range(1, min(len(relevant_ids), k) + 1))
+        idcg = sum(
+            1.0 / math.log2(r + 1) for r in range(1, min(len(relevant_ids), k) + 1)
+        )
         if idcg == 0.0:
             return 0.0
 
