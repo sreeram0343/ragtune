@@ -3,21 +3,32 @@ RAGTUNE Enterprise Identity & Access Management - Database Storage Layer
 SQLAlchemy ORM schemas and database persistence repository.
 """
 
-from datetime import datetime, timezone
-from typing import List, Optional, Dict, Any
-from sqlalchemy import (
-    create_engine, Column, String, Boolean, Integer, DateTime, Text, ForeignKey, JSON
-)
-from sqlalchemy.orm import declarative_base, sessionmaker, relationship
-from config.settings import settings
-from auth.domain.models import (
-    UserDomain, OrganizationDomain, WorkspaceDomain, ProjectDomain,
-    OrganizationMemberDomain, WorkspaceMemberDomain, SessionDomain,
-    InvitationDomain, AuditEventDomain, UserStatus, OrgStatus, InvitationStatus, utc_now
-)
-from auth.domain.permissions import OrgRole, WorkspaceRole
+from typing import Any
 
-Base = declarative_base()
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    create_engine,
+)
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
+
+from auth.domain.models import (
+    SessionDomain,
+    UserDomain,
+    UserStatus,
+    utc_now,
+)
+from config.settings import settings
+
+
+class Base(DeclarativeBase):
+    pass
 
 
 class UserORM(Base):
@@ -61,7 +72,9 @@ class ProjectORM(Base):
     __tablename__ = "auth_projects"
 
     project_id = Column(String(64), primary_key=True)
-    workspace_id = Column(String(64), ForeignKey("auth_workspaces.workspace_id"), nullable=False)
+    workspace_id = Column(
+        String(64), ForeignKey("auth_workspaces.workspace_id"), nullable=False
+    )
     name = Column(String(255), nullable=False)
     created_at = Column(DateTime, default=utc_now)
 
@@ -69,7 +82,9 @@ class ProjectORM(Base):
 class OrganizationMemberORM(Base):
     __tablename__ = "auth_org_members"
 
-    org_id = Column(String(64), ForeignKey("auth_organizations.org_id"), primary_key=True)
+    org_id = Column(
+        String(64), ForeignKey("auth_organizations.org_id"), primary_key=True
+    )
     user_id = Column(String(64), ForeignKey("auth_users.user_id"), primary_key=True)
     role = Column(String(64), default="MEMBER")
     joined_at = Column(DateTime, default=utc_now)
@@ -78,7 +93,9 @@ class OrganizationMemberORM(Base):
 class WorkspaceMemberORM(Base):
     __tablename__ = "auth_workspace_members"
 
-    workspace_id = Column(String(64), ForeignKey("auth_workspaces.workspace_id"), primary_key=True)
+    workspace_id = Column(
+        String(64), ForeignKey("auth_workspaces.workspace_id"), primary_key=True
+    )
     user_id = Column(String(64), ForeignKey("auth_users.user_id"), primary_key=True)
     role = Column(String(64), default="MEMBER")
     joined_at = Column(DateTime, default=utc_now)
@@ -88,7 +105,9 @@ class SessionORM(Base):
     __tablename__ = "auth_sessions"
 
     session_id = Column(String(64), primary_key=True)
-    user_id = Column(String(64), ForeignKey("auth_users.user_id"), nullable=False, index=True)
+    user_id = Column(
+        String(64), ForeignKey("auth_users.user_id"), nullable=False, index=True
+    )
     refresh_token_hash = Column(String(64), unique=True, nullable=False, index=True)
     ip_address = Column(String(64), nullable=True)
     user_agent = Column(Text, nullable=True)
@@ -130,12 +149,12 @@ class AuditEventORM(Base):
 
 
 class AuthDatabaseRepository:
-    def __init__(self, db_url: Optional[str] = None):
+    def __init__(self, db_url: str | None = None):
         url = db_url or settings.DATABASE_URL
         self.engine = create_engine(
             url,
             echo=False,
-            connect_args={"check_same_thread": False} if "sqlite" in url else {}
+            connect_args={"check_same_thread": False} if "sqlite" in url else {},
         )
         Base.metadata.create_all(self.engine)
         self.SessionLocal = sessionmaker(bind=self.engine)
@@ -144,7 +163,7 @@ class AuthDatabaseRepository:
         return self.SessionLocal()
 
     # Mappers Domain <-> ORM
-    def _user_to_domain(self, u: UserORM) -> UserDomain:
+    def _user_to_domain(self, u: Any) -> UserDomain:
         return UserDomain(
             user_id=u.user_id,
             email=u.email,
@@ -155,15 +174,15 @@ class AuthDatabaseRepository:
             failed_login_attempts=u.failed_login_attempts,
             locked_until=u.locked_until,
             created_at=u.created_at,
-            updated_at=u.updated_at
+            updated_at=u.updated_at,
         )
 
-    def get_user_by_email(self, email: str) -> Optional[UserDomain]:
+    def get_user_by_email(self, email: str) -> UserDomain | None:
         with self.get_session() as db:
             u = db.query(UserORM).filter(UserORM.email == email.lower().strip()).first()
             return self._user_to_domain(u) if u else None
 
-    def get_user_by_id(self, user_id: str) -> Optional[UserDomain]:
+    def get_user_by_id(self, user_id: str) -> UserDomain | None:
         with self.get_session() as db:
             u = db.query(UserORM).filter(UserORM.user_id == user_id).first()
             return self._user_to_domain(u) if u else None
@@ -178,7 +197,7 @@ class AuthDatabaseRepository:
                 is_email_verified=user.is_email_verified,
                 status=user.status.value,
                 failed_login_attempts=user.failed_login_attempts,
-                locked_until=user.locked_until
+                locked_until=user.locked_until,
             )
             db.add(u)
             db.commit()
@@ -209,15 +228,19 @@ class AuthDatabaseRepository:
                 ip_address=sess.ip_address,
                 user_agent=sess.user_agent,
                 is_revoked=sess.is_revoked,
-                expires_at=sess.expires_at
+                expires_at=sess.expires_at,
             )
             db.add(s)
             db.commit()
             return sess
 
-    def get_session_by_hash(self, token_hash: str) -> Optional[SessionDomain]:
+    def get_session_by_hash(self, token_hash: str) -> SessionDomain | None:
         with self.get_session() as db:
-            s = db.query(SessionORM).filter(SessionORM.refresh_token_hash == token_hash).first()
+            s: Any = (
+                db.query(SessionORM)
+                .filter(SessionORM.refresh_token_hash == token_hash)
+                .first()
+            )
             if not s:
                 return None
             return SessionDomain(
@@ -229,15 +252,19 @@ class AuthDatabaseRepository:
                 is_revoked=s.is_revoked,
                 expires_at=s.expires_at,
                 created_at=s.created_at,
-                last_active_at=s.last_active_at
+                last_active_at=s.last_active_at,
             )
 
     def revoke_session(self, session_id: str):
         with self.get_session() as db:
-            db.query(SessionORM).filter(SessionORM.session_id == session_id).update({"is_revoked": True})
+            db.query(SessionORM).filter(SessionORM.session_id == session_id).update(
+                {"is_revoked": True}
+            )
             db.commit()
 
     def revoke_all_user_sessions(self, user_id: str):
         with self.get_session() as db:
-            db.query(SessionORM).filter(SessionORM.user_id == user_id).update({"is_revoked": True})
+            db.query(SessionORM).filter(SessionORM.user_id == user_id).update(
+                {"is_revoked": True}
+            )
             db.commit()
