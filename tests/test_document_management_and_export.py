@@ -3,8 +3,8 @@ RAGTUNE - Document Management, Report Export & Expanded Intent Tests
 Validates file upload, document cataloging, document eviction, query exports, and new intent routes.
 """
 
-import pytest
 from fastapi.testclient import TestClient
+
 from api.main import app
 
 client = TestClient(app)
@@ -16,7 +16,7 @@ def test_file_ingestion_and_document_lifecycle():
     response = client.post(
         "/api/v1/ingest/file",
         files={"file": ("security_policy.md", file_content, "text/markdown")},
-        data={"title": "Security Policy MD"}
+        data={"title": "Security Policy MD"},
     )
     assert response.status_code == 200
     data = response.json()
@@ -46,12 +46,18 @@ def test_file_ingestion_and_document_lifecycle():
 
 def test_query_result_export_json_and_csv():
     # Execute query first
-    q_res = client.post("/api/v1/query", json={"query": "What is our SLA uptime policy?", "bypass_cache": True})
+    q_res = client.post(
+        "/api/v1/query",
+        json={"query": "What is our SLA uptime policy?", "bypass_cache": True},
+    )
     assert q_res.status_code == 200
     query_response = q_res.json()
 
     # Test Export JSON
-    exp_json = client.post("/api/v1/export/query", json={"export_format": "json", "query_response": query_response})
+    exp_json = client.post(
+        "/api/v1/export/query",
+        json={"export_format": "json", "query_response": query_response},
+    )
     assert exp_json.status_code == 200
     json_data = exp_json.json()
     assert json_data["export_format"] == "json"
@@ -59,7 +65,10 @@ def test_query_result_export_json_and_csv():
     assert "overall_confidence" in json_data["content"]
 
     # Test Export CSV
-    exp_csv = client.post("/api/v1/export/query", json={"export_format": "csv", "query_response": query_response})
+    exp_csv = client.post(
+        "/api/v1/export/query",
+        json={"export_format": "csv", "query_response": query_response},
+    )
     assert exp_csv.status_code == 200
     csv_data = exp_csv.json()
     assert csv_data["export_format"] == "csv"
@@ -68,13 +77,33 @@ def test_query_result_export_json_and_csv():
 
 def test_summarization_and_policy_intent_routing():
     # Test Summarization Route
-    sum_res = client.post("/api/v1/query", json={"query": "Summarize our SLA terms and outage procedures", "bypass_cache": True})
+    sum_res = client.post(
+        "/api/v1/query",
+        json={
+            "query": "Summarize our SLA terms and outage procedures",
+            "bypass_cache": True,
+        },
+    )
     assert sum_res.status_code == 200
     sum_data = sum_res.json()
-    assert sum_data["intent_route"] in ["SUMMARIZATION", "HYBRID_FUSION", "UNSTRUCTURED_RAG"]
+    assert sum_data["intent_route"] in [
+        "SUMMARIZATION",
+        "HYBRID_FUSION",
+        "UNSTRUCTURED_RAG",
+    ]
 
     # Test Policy Lookup Route
-    pol_res = client.post("/api/v1/query", json={"query": "What is the compliance policy for security governance?", "bypass_cache": True})
+    pol_res = client.post(
+        "/api/v1/query",
+        json={
+            "query": "What is the compliance policy for security governance?",
+            "bypass_cache": True,
+        },
+    )
     assert pol_res.status_code == 200
     pol_data = pol_res.json()
-    assert pol_data["intent_route"] in ["POLICY_LOOKUP", "HYBRID_FUSION", "UNSTRUCTURED_RAG"]
+    assert pol_data["intent_route"] in [
+        "POLICY_LOOKUP",
+        "HYBRID_FUSION",
+        "UNSTRUCTURED_RAG",
+    ]
