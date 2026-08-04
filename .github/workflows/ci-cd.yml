@@ -50,6 +50,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: 'pip'
+
       - name: Run Bandit AST Security Scan (fail only on HIGH)
         run: |
           python -m pip install --upgrade pip
@@ -127,6 +133,11 @@ PY
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Lowercase Repository Name
+        id: repo
+        run: |
+          echo "owner_repo=${GITHUB_REPOSITORY,,}" >> $GITHUB_OUTPUT
+
       - name: Determine Dockerfile Name
         id: dockerfile
         run: |
@@ -136,23 +147,36 @@ PY
             echo "path=Dockerfile.${{ matrix.service }}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build Docker Image
+      - name: Build Docker Image Locally
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ${{ steps.dockerfile.outputs.path }}
-          push: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging' }}
-          tags: |
-            ghcr.io/${{ github.repository }}-${{ matrix.service }}:latest
-            ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ github.sha }}
+          load: true
+          tags: local-${{ matrix.service }}:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Run Trivy Vulnerability Scanner
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.28.0
         with:
-          image-ref: 'ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ github.sha }}'
+          image-ref: 'local-${{ matrix.service }}:test'
           format: 'table'
-          exit-code: '0'
-          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+          severity: 'CRITICAL'
+
+      - name: Push Docker Image to GHCR
+        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ steps.dockerfile.outputs.path }}
+          push: true
+          tags: |
+            ghcr.io/${{ steps.repo.outputs.owner_repo }}-${{ matrix.service }}:latest
+            ghcr.io/${{ steps.repo.outputs.owner_repo }}-${{ matrix.service }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   # ---------------------------------------------------------------------------
   # Stage 5: Zero-Downtime Deployment & Automated Rollback
@@ -173,6 +197,19 @@ PY
           method: kubeconfig
           kubeconfig: ${{ secrets.KUBE_CONFIG }}
 
+      - name: Lowercase Repository Name
+        id: repo
+        if: ${{ secrets.KUBE_CONFIG != '' }}
+        run: |
+          echo "owner_repo=${GITHUB_REPOSITORY,,}" >> $GITHUB_OUTPUT
+
+      - name: Update Kubernetes Manifests with Tagged Images
+        if: ${{ secrets.KUBE_CONFIG != '' }}
+        run: |
+          sed -i 's|ragtune/backend:latest|ghcr.io/${{ steps.repo.outputs.owner_repo }}-backend:${{ github.sha }}|g' k8s/deployment.yaml
+          sed -i 's|ragtune/frontend:latest|ghcr.io/${{ steps.repo.outputs.owner_repo }}-frontend:${{ github.sha }}|g' k8s/frontend-deployment.yaml
+          sed -i 's|ragtune/worker:latest|ghcr.io/${{ steps.repo.outputs.owner_repo }}-worker:${{ github.sha }}|g' k8s/worker-deployment.yaml
+
       - name: Apply Kubernetes Manifests with Rolling Update
         if: ${{ secrets.KUBE_CONFIG != '' }}
         run: |
@@ -188,8 +225,19 @@ PY
           kubectl rollout status deployment/frontend -n ragtune-prod --timeout=180s || (kubectl rollout undo deployment/frontend -n ragtune-prod && exit 1)
           kubectl rollout status deployment/worker -n ragtune-prod --timeout=180s || (kubectl rollout undo deployment/worker -n ragtune-prod && exit 1)
 
-      - name: Post-Deployment Smoke Verification
+      - name: Post-Deployment Smoke Verification (Port-Forwarded)
         if: ${{ secrets.KUBE_CONFIG != '' }}
         run: |
-          python scripts/verify_deployment.py --url https://ragtune.enterprise.com
+          # Start background port-forwarding for the backend service
+          kubectl port-forward svc/backend-service 8000:8000 -n ragtune-prod &
+          PF_PID=$!
+          
+          # Wait a few seconds for the port-forward to establish
+          sleep 5
+          
+          # Execute verification against the port-forwarded localhost endpoint
+          python scripts/verify_deployment.py --url http://localhost:8000
+          
+          # Terminate background port-forward process
+          kill $PF_PID
 
