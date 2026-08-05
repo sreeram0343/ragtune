@@ -41,8 +41,9 @@ class IdentityService:
         if not email_clean or "@" not in email_clean:
             return False, None, "Invalid email address format"
 
-        if not password or len(password) < 8:
-            return False, None, "Password must be at least 8 characters long"
+        valid_pass, msg_pass = CryptoService.validate_password_strength(password)
+        if not valid_pass:
+            return False, None, msg_pass
 
         existing = self.repo.get_user_by_email(email_clean)
         if existing:
