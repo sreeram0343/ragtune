@@ -26,21 +26,22 @@ class QueryRequest(BaseModel):
 
 
 class QueryResponse(BaseModel):
-    query: str
-    intent_route: str
-    response: str
-    overall_confidence: float
-    execution_time_ms: float
-    cache_hit: bool
-    hitl_flagged: bool
-    hitl_ticket_id: str | None = None
-    hitl_reason: str | None = None
-    generated_sql: str | None = None
-    sql_rows: list[dict[str, Any]] = Field(default_factory=list)
-    sql_columns: list[str] = Field(default_factory=list)
-    retrieved_chunks: list[dict[str, Any]] = Field(default_factory=list)
-    guardrail_matrix: list[dict[str, Any]] = Field(default_factory=list)
-    trace_id: str | None = None
+    query: str = Field(..., description="Original natural language query")
+    intent_route: str = Field(..., description="Determined intent routing path")
+    response: str = Field(..., description="Synthesized response narrative")
+    overall_confidence: float = Field(..., description="Groundedness & confidence score between 0.0 and 1.0")
+    execution_time_ms: float = Field(..., description="Total execution latency in milliseconds")
+    cache_hit: bool = Field(..., description="Whether response was served from cache")
+    hitl_flagged: bool = Field(..., description="Whether query was flagged for HITL review")
+    hitl_ticket_id: str | None = Field(None, description="HITL ticket ID if flagged")
+    hitl_reason: str | None = Field(None, description="Reason for HITL flagging")
+    generated_sql: str | None = Field(None, description="Generated SQL statement if applicable")
+    sql_rows: list[dict[str, Any]] = Field(default_factory=list, description="SQL query tabular result rows")
+    sql_columns: list[str] = Field(default_factory=list, description="SQL result column headers")
+    retrieved_chunks: list[dict[str, Any]] = Field(default_factory=list, description="Retrieved vector document chunks")
+    guardrail_matrix: list[dict[str, Any]] = Field(default_factory=list, description="9-layer guardrail evaluation metrics")
+    trace_id: str | None = Field(None, description="XAI trace identifier for execution auditing")
+
 
 
 class IngestTextRequest(BaseModel):
