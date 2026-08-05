@@ -33,6 +33,11 @@ class XAITrace(BaseModel):
     hitl_reason: str | None = None
     created_at: float = Field(default_factory=time.time)
 
+    def get_total_latency_ms(self) -> float:
+        """Calculates total latency across all execution steps."""
+        return round(sum(step.latency_ms for step in self.execution_steps), 2)
+
+
 
 class XAITracer:
     def __init__(self):
