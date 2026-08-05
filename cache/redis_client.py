@@ -110,3 +110,21 @@ class EnterpriseCacheManager:
             except Exception:
                 pass
         self.stats = {"hits": 0, "misses": 0, "entries": 0}
+
+    def delete(self, cache_key: str) -> bool:
+        """Evicts a specific cache key."""
+        evicted = False
+        if cache_key in self.memory_cache:
+            del self.memory_cache[cache_key]
+            evicted = True
+
+        if self.use_redis and self.redis_client:
+            try:
+                res = self.redis_client.delete(f"ragtune:{cache_key}")
+                if res > 0:
+                    evicted = True
+            except Exception:
+                pass
+        self.stats["entries"] = len(self.memory_cache)
+        return evicted
+
