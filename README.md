@@ -13,7 +13,9 @@
 ![Intelligent Cache](https://img.shields.io/badge/Intelligent%20Cache-L1--L2%20Multi--Tier-10B981?style=for-the-badge)
 ![Input Security Pipeline](https://img.shields.io/badge/Input%20Security-8--Stage%20Defense-10B981?style=for-the-badge)
 ![IAM & Security](https://img.shields.io/badge/IAM-Production%20Grade-10B981?style=for-the-badge)
-![License](https://img.shields.io/badge/License-MIT-10B981?style=for-the-badge)
+![Vercel Deployment](https://img.shields.io/badge/Vercel-Frontend%20Static-black?style=for-the-badge&logo=vercel)
+![Render Deployment](https://img.shields.io/badge/Render-Backend%20API-46E3B7?style=for-the-badge&logo=render)
+![License](https://img.shields.io/badge/License-Apache%202.0-10B981?style=for-the-badge)
 ![Build Status](https://img.shields.io/badge/Build-Passing-10B981?style=for-the-badge)
 
 RAGTUNE is a domain-agnostic Enterprise Knowledge Intelligence Platform engineered for organizations to query, reason, and execute evidence-backed decisions across structured SQL databases and unstructured enterprise documents.
@@ -174,6 +176,22 @@ python -m pytest tests/ -v
 
 ---
 
+## Production Cloud Deployment (Vercel & Render)
+
+RAGTUNE is pre-configured for multi-cloud production deployment.
+
+### Frontend Deployment (Vercel)
+1. Import this repository in [Vercel](https://vercel.com).
+2. Set Root Directory to `./` or `frontend`.
+3. Vercel automatically detects `vercel.json` and proxies `/api/*` and `/health` requests to the Render backend service seamlessly.
+
+### Backend Deployment (Render)
+1. In [Render](https://render.com), click **New > Blueprint**.
+2. Connect your GitHub repository. Render automatically reads `render.yaml` and provisions the Python Web Service.
+3. Configure environment variables in Render dashboard (e.g. `CORS_ORIGINS`, `SECRET_KEY`).
+
+---
+
 ## License
 
-Released under the MIT License. Built for enterprise knowledge intelligence.
+Released under the [Apache License 2.0](LICENSE). Built for enterprise knowledge intelligence.
