@@ -46,6 +46,15 @@ class UserDomain(BaseModel):
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
 
+    def is_active(self) -> bool:
+        """Returns True if user status is ACTIVE and account is not locked."""
+        if self.status != UserStatus.ACTIVE:
+            return False
+        if self.locked_until and self.locked_until > utc_now():
+            return False
+        return True
+
+
 
 class OrganizationDomain(BaseModel):
     org_id: str
