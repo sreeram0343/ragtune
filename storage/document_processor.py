@@ -115,3 +115,11 @@ class DocumentProcessor:
             title=title,
             metadata={"source_path": file_path, "file_type": ext},
         )
+
+    @staticmethod
+    def is_supported_extension(filename: str) -> bool:
+        """Checks if file extension is supported for ingestion."""
+        allowed_exts = {".txt", ".md", ".json", ".csv", ".pdf"}
+        _, ext = os.path.splitext(filename)
+        return ext.lower() in allowed_exts
+
