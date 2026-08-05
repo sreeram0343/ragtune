@@ -33,6 +33,7 @@ from api.schemas import (
 from auth.api.routes import router as auth_router
 from cache.redis_client import EnterpriseCacheManager
 from config.settings import settings
+from demo_data.seed_data import seed_enterprise_db, seed_sample_documents
 from guardrails.pipeline import GuardrailPipeline
 from hitl.manager import HITLManager
 from retrieval.hybrid_search import HybridSearchEngine
@@ -69,7 +70,24 @@ orchestrator = AgentOrchestrator(
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Seed initial enterprise sample data on startup if storage is empty."""
+    db_path = (
+        settings.DATABASE_URL.replace("sqlite:///", "")
+        if settings.DATABASE_URL.startswith("sqlite:///")
+        else None
+    )
+    if db_path and not os.path.exists(db_path):
+        try:
+            seed_enterprise_db(db_path)
+        except Exception:  # nosec B110
+            pass
+
     sample_dir = os.path.join("demo_data", "sample_documents")
+    if not os.path.exists(sample_dir) or not os.listdir(sample_dir):
+        try:
+            seed_sample_documents(sample_dir)
+        except Exception:  # nosec B110
+            pass
+
     if os.path.exists(sample_dir):
         for f in os.listdir(sample_dir):
             f_path = os.path.join(sample_dir, f)
@@ -89,11 +107,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Enable CORS for modern web clients
+# Configure dynamic CORS for production frontend integration
+cors_origins = [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=cors_origins if cors_origins else ["*"],
+    allow_credentials=True if cors_origins and cors_origins != ["*"] else False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

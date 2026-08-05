@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "ragtune-secret-key-change-in-production-2026"
     HOST: str = "0.0.0.0"  # nosec B104
     PORT: int = 8000
+    CORS_ORIGINS: str = "*"
 
     # Structured Storage / Database Settings
     DATABASE_URL: str = "sqlite:///./demo_data/enterprise_db.sqlite"

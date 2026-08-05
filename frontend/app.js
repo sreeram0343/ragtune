@@ -3,6 +3,9 @@
 // Inspired by Apple, Linear, Vercel & OpenAI Enterprise
 // ==========================================================================
 
+// Production API Configuration (supports Vercel environment variables & absolute backend URL override)
+const API_BASE = window.RAGTUNE_API_URL || '';
+
 document.addEventListener('DOMContentLoaded', () => {
     initNavigation();
     initCommandPalette();
@@ -195,7 +198,7 @@ async function submitChatQuery() {
     history.scrollTop = history.scrollHeight;
 
     try {
-        const res = await fetch('/api/v1/query', {
+        const res = await fetch(`${API_BASE}/api/v1/query`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -258,7 +261,7 @@ window.executeSQLQuery = async function() {
     if (!query) return;
 
     try {
-        const res = await fetch('/api/v1/query', {
+        const res = await fetch(`${API_BASE}/api/v1/query`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ query: query, role: 'ANALYST', tenant_id: 'tenant_enterprise_default' })
@@ -300,7 +303,7 @@ window.inspectXAITrace = async function(traceId) {
     if (!drawer || !traceId) return;
 
     try {
-        const res = await fetch(`/api/v1/xai/${traceId}`);
+        const res = await fetch(`${API_BASE}/api/v1/xai/${traceId}`);
         if (!res.ok) return;
         const trace = await res.json();
 
@@ -331,7 +334,7 @@ window.loadHITLQueue = async function() {
     if (!queueList) return;
 
     try {
-        const res = await fetch('/api/v1/hitl/queue');
+        const res = await fetch(`${API_BASE}/api/v1/hitl/queue`);
         const data = await res.json();
 
         if (badge) badge.textContent = data.pending_count || 0;
@@ -367,7 +370,7 @@ window.loadHITLQueue = async function() {
 
 window.resolveTicket = async function(ticketId, action) {
     try {
-        const res = await fetch('/api/v1/hitl/action', {
+        const res = await fetch(`${API_BASE}/api/v1/hitl/action`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -395,7 +398,7 @@ async function loadSchemaCatalog() {
     if (!container) return;
 
     try {
-        const res = await fetch('/api/v1/schema');
+        const res = await fetch(`${API_BASE}/api/v1/schema`);
         const data = await res.json();
         if (!data.schema || data.schema.length === 0) return;
 
@@ -418,7 +421,7 @@ async function loadSchemaCatalog() {
 // Health Telemetry Check
 async function checkHealthStatus() {
     try {
-        const res = await fetch('/health');
+        const res = await fetch(`${API_BASE}/health`);
         if (res.ok) {
             const text = document.getElementById('header-status-text');
             if (text) text.textContent = 'Engine Online';
@@ -444,7 +447,7 @@ window.triggerFileUpload = function() {
             formData.append('title', file.name);
             try {
                 showToast(`Uploading '${file.name}'...`, 'info');
-                const res = await fetch('/api/v1/ingest/file', {
+                const res = await fetch(`${API_BASE}/api/v1/ingest/file`, {
                     method: 'POST',
                     body: formData
                 });
@@ -468,7 +471,7 @@ window.loadDocumentsList = async function() {
     if (!tbody) return;
 
     try {
-        const res = await fetch('/api/v1/documents');
+        const res = await fetch(`${API_BASE}/api/v1/documents`);
         if (!res.ok) return;
         const data = await res.json();
 
@@ -500,7 +503,7 @@ window.loadDocumentsList = async function() {
 window.deleteDocument = async function(docId) {
     if (!confirm(`Are you sure you want to delete document '${docId}'?`)) return;
     try {
-        const res = await fetch(`/api/v1/documents/${encodeURIComponent(docId)}`, { method: 'DELETE' });
+        const res = await fetch(`${API_BASE}/api/v1/documents/${encodeURIComponent(docId)}`, { method: 'DELETE' });
         const data = await res.json();
         if (res.ok) {
             showToast(data.message || 'Document deleted', 'success');
@@ -519,7 +522,7 @@ window.exportQueryResult = async function(format) {
         return;
     }
     try {
-        const res = await fetch('/api/v1/export/query', {
+        const res = await fetch(`${API_BASE}/api/v1/export/query`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

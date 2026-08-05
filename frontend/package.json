@@ -1,0 +1,12 @@
+{
+  "name": "ragtune-frontend",
+  "version": "1.0.0",
+  "description": "RAGTUNE Enterprise AI Operating System Web Interface",
+  "scripts": {
+    "build": "echo 'Frontend static build completed.'",
+    "start": "npx serve ."
+  },
+  "keywords": ["ragtune", "rag", "enterprise-ai", "vercel"],
+  "author": "RAGTune Team",
+  "license": "MIT"
+}

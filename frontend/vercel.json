@@ -1,0 +1,22 @@
+{
+  "version": 2,
+  "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://ragtune-backend.onrender.com/api/:path*"
+    },
+    {
+      "source": "/health",
+      "destination": "https://ragtune-backend.onrender.com/health"
+    },
+    {
+      "source": "/metrics",
+      "destination": "https://ragtune-backend.onrender.com/metrics"
+    },
+    {
+      "source": "/static/:path*",
+      "destination": "/:path*"
+    }
+  ]
+}
