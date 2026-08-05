@@ -248,9 +248,15 @@ def ingest_text(payload: IngestTextRequest):
 
 @app.post("/api/v1/ingest/file", response_model=IngestResponse, tags=["Ingestion"])
 async def ingest_file(file: UploadFile = File(...), title: str | None = Form(None)):
-    """Ingests uploaded file (.md, .txt) into hybrid vector index."""
+    """Ingests uploaded file (.md, .txt, .json, .csv) into hybrid vector index."""
     if not file.filename:
         raise HTTPException(status_code=400, detail="Filename required")
+
+    if not doc_processor.is_supported_extension(file.filename):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file format for '{file.filename}'. Allowed formats: .txt, .md, .json, .csv, .pdf",
+        )
 
     doc_title = title or file.filename
     doc_id = f"doc_{file.filename.replace(' ', '_').lower()}_{int(time.time())}"
