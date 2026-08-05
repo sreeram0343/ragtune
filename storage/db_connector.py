@@ -129,3 +129,13 @@ class DBConnector:
                 )
         except Exception as e:
             return False, [], [], f"SQL Execution Error: {e!s}"
+
+    def ping(self) -> bool:
+        """Verifies database connectivity with a lightweight test query."""
+        try:
+            with self.engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            return True
+        except Exception:
+            return False
+
