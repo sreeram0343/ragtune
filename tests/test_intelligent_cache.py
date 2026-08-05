@@ -193,3 +193,16 @@ def test_multi_tenant_security_isolation():
 
     assert status_b == "CACHE_MISS"
     assert res_b == "Tenant B Data"
+
+
+def test_enterprise_cache_manager_delete():
+    from cache.redis_client import EnterpriseCacheManager
+
+    mgr = EnterpriseCacheManager()
+    mgr.set("test_key", {"foo": "bar"}, ttl_seconds=60)
+    assert mgr.get("test_key") == {"foo": "bar"}
+
+    deleted = mgr.delete("test_key")
+    assert deleted is True
+    assert mgr.get("test_key") is None
+
