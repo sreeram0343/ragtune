@@ -1,0 +1,22 @@
+name: Feature Request
+description: Suggest an idea or enhancement for RAGTUNE
+title: "[FEAT]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: Thank you for helping improve RAGTUNE!
+  - type: textarea
+    id: feature-description
+    attributes:
+      label: Feature Description
+      description: Describe the feature you would like to see added.
+    validations:
+      required: true
+  - type: textarea
+    id: problem-statement
+    attributes:
+      label: Use Case / Problem Statement
+      description: Is your feature request related to a problem? Please describe.
+    validations:
+      required: false
