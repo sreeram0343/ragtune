@@ -1,4 +1,4 @@
-# Python
+# Python & Caching Artifacts
 __pycache__/
 *.py[cod]
 *$py.class
@@ -19,12 +19,17 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 
 # Virtual Environments
 venv/
 env/
 ENV/
-.venv
+.venv/
 
 # Database & Storage
 *.db
@@ -32,16 +37,17 @@ ENV/
 *.log
 .vector_cache/
 
-# IDE & OS
+# IDE, OS & Vercel
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
+.vercel/
 
 # Environment variables
 .env
 .env.local
+.env.*.local
 
 # Local Guides
 RAGTUNE_MASTER_GUIDE.md
-
