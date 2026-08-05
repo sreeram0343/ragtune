@@ -244,3 +244,14 @@ class HybridVectorStore:
             self.avg_doc_len = 0.0
 
         return removed_count
+
+    def get_stats(self) -> dict[str, Any]:
+        """Returns vector store metrics and corpus statistics."""
+        return {
+            "total_chunks": len(self.chunks),
+            "total_dense_vectors": len(self.dense_vectors),
+            "embedding_dim": self.embedding_dim,
+            "vocabulary_size": len(self.doc_freqs),
+            "avg_document_length": round(self.avg_doc_len, 2),
+        }
+
