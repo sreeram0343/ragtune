@@ -107,3 +107,15 @@ def test_summarization_and_policy_intent_routing():
         "HYBRID_FUSION",
         "UNSTRUCTURED_RAG",
     ]
+
+
+def test_unsupported_file_extension_ingestion():
+    response = client.post(
+        "/api/v1/ingest/file",
+        files={"file": ("unsupported_script.exe", b"binary content", "application/octet-stream")},
+        data={"title": "Executable File"},
+    )
+    assert response.status_code == 400
+    data = response.json()
+    assert "Unsupported file format" in data["detail"]
+
