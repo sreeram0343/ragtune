@@ -129,6 +129,7 @@ def health_check():
         "status": "HEALTHY",
         "platform": settings.APP_NAME,
         "version": settings.VERSION,
+        "database_connected": db_connector.ping(),
         "cache_mode": cache_manager.get_stats()["mode"],
         "indexed_documents_chunks": len(vector_store.chunks),
     }
