@@ -63,3 +63,16 @@ class CryptoService:
     def hash_token(token: str) -> str:
         """Computes SHA-256 digest of token string for safe database storage."""
         return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def validate_password_strength(password: str) -> tuple[bool, str]:
+        """
+        Validates password complexity requirements.
+        Returns: (is_valid: bool, error_message: str)
+        """
+        if not password or len(password) < 8:
+            return False, "Password must be at least 8 characters long"
+        if len(password) > 128:
+            return False, "Password cannot exceed 128 characters"
+        return True, "Password meets strength requirements"
+
