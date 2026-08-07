@@ -16,6 +16,8 @@ from input_security.framework.stage import (
     SecurityViolationException,
 )
 
+EXCLUDED_PATHS = {"/health", "/api/v1/health", "/docs", "/openapi.json", "/redoc"}
+
 # Global pipeline instance
 auth_db = AuthDatabaseRepository()
 security_pipeline = InputSecurityPipeline(auth_db)
@@ -25,6 +27,10 @@ class InputSecurityMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
+        if request.url.path in EXCLUDED_PATHS:
+            return await call_next(request)
+
+
         # Read raw request body
         raw_body = await request.body()
         client_ip = request.client.host if request.client else None
