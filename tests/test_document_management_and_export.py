@@ -130,7 +130,10 @@ def test_hybrid_vector_store_get_chunk_by_id():
         doc_id="doc_1",
         title="Test Document",
         content="Sample content for testing chunk lookup.",
+        chunk_index=0,
+        token_count=10,
     )
+
     store.add_chunks([chunk])
 
     retrieved = store.get_chunk_by_id("chunk_test_123")
