@@ -123,3 +123,17 @@ def test_execution_plan_structure_and_cost_metrics():
     assert plan.total_est_latency_ms > 0.0
     assert len(plan.stages) >= 1
     assert "Confidence" in plan.explanation
+
+
+def test_intent_classifier_is_hybrid_query():
+    from router.classifier import IntentClassifier
+
+    classifier = IntentClassifier()
+    assert (
+        classifier.is_hybrid_query(
+            "Compute total sales revenue under contract agreement terms"
+        )
+        is True
+    )
+    assert classifier.is_hybrid_query("What is our travel policy?") is False
+
