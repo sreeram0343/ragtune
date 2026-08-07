@@ -9,7 +9,7 @@ import uuid
 from input_security.framework.stage import EnrichedSecurityRequest
 from verification.crag import CRAGEvaluator
 from verification.decision import DecisionMatrix
-from verification.domain import QualityReport
+from verification.domain import QualityReport, VerificationAction
 from verification.grounding import GroundednessVerifier
 from verification.hallucination import HallucinationDetector
 from verification.scoring import QualityScoringEngine
@@ -105,3 +105,17 @@ class VerificationEngine:
             metrics=metrics,
             explanation=explanation,
         )
+
+    def is_acceptable_quality(
+        self, report: QualityReport, min_threshold: float = 0.70
+    ) -> bool:
+        """Determines if a quality report meets minimum acceptance criteria."""
+        acceptable_actions = {
+            VerificationAction.APPROVE,
+            VerificationAction.APPROVE_WITH_WARNING,
+        }
+        return (
+            report.action in acceptable_actions
+            and report.quality_score >= min_threshold
+        )
+
