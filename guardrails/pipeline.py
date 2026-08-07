@@ -270,3 +270,8 @@ class GuardrailPipeline:
                 else None
             ),
         )
+
+    def get_failed_layers(self, result: PipelineResult) -> list[str]:
+        """Returns the names of all guardrail layers that failed evaluation."""
+        return [e.layer_name for e in result.layer_evaluations if not e.passed]
+
