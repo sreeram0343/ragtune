@@ -94,3 +94,13 @@ class SQLValidator:
             row_limit_applied=self.max_row_limit,
             requires_hitl_approval=requires_hitl,
         )
+
+    def contains_mutation(self, sql_query: str) -> bool:
+        """Helper to quickly check if a raw SQL string contains forbidden DDL/DML mutation keywords."""
+        if not sql_query:
+            return False
+        for r in self.forbidden_regexes:
+            if r.search(sql_query):
+                return True
+        return False
+
