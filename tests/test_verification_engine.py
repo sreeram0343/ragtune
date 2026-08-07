@@ -108,3 +108,14 @@ def test_hitl_escalation_for_high_risk_query():
     )
 
     assert report.action == VerificationAction.ESCALATE_HITL
+
+
+def test_is_acceptable_quality_evaluation():
+    engine = VerificationEngine()
+    req = _build_dummy_security_request("What is our enterprise SLA commitment?")
+    narrative = "RAGTUNE guarantees an enterprise system uptime commitment of 99.9%."
+    contexts = ["RAGTUNE guarantees an enterprise system uptime commitment of 99.9%."]
+
+    report = engine.verify_response(req, narrative, contexts)
+    assert engine.is_acceptable_quality(report, min_threshold=0.70) is True
+
