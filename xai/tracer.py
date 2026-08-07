@@ -103,3 +103,16 @@ class XAITracer:
     def get_trace(self, trace_id: str) -> XAITrace | None:
         """Retrieves trace object by trace_id."""
         return self.trace_store.get(trace_id)
+
+    def get_step_by_node(
+        self, trace_id: str, agent_node: str
+    ) -> ExecutionStep | None:
+        """Finds the first execution step executed by a specific agent node."""
+        trace = self.get_trace(trace_id)
+        if not trace:
+            return None
+        for step in trace.execution_steps:
+            if step.agent_node == agent_node:
+                return step
+        return None
+
