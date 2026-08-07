@@ -78,3 +78,9 @@ def get_default_user_context(
     return UserContext(
         user_id=f"user_{role.value.lower()}", role=role, tenant_id=tenant_id
     )
+
+
+def check_user_permission(user_context: UserContext, permission: Permission) -> bool:
+    """Helper function to check permission on UserContext."""
+    return user_context.has_permission(permission)
+
