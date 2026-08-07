@@ -44,3 +44,18 @@ def test_text2sql_employee_salary_sorting():
     assert res.success
     assert "employees" in res.sanitized_sql.lower()
     assert "order by" in res.sanitized_sql.lower()
+
+
+def test_sql_validator_contains_mutation():
+    from text2sql.validator import SQLValidator
+
+    validator = SQLValidator()
+    assert validator.contains_mutation("DROP TABLE users;") is True
+    assert validator.contains_mutation("DELETE FROM customers WHERE id = 1;") is True
+    assert (
+        validator.contains_mutation(
+            "SELECT region, SUM(revenue) FROM sales GROUP BY region;"
+        )
+        is False
+    )
+
