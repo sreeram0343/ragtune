@@ -119,3 +119,23 @@ def test_unsupported_file_extension_ingestion():
     data = response.json()
     assert "Unsupported file format" in data["detail"]
 
+
+def test_hybrid_vector_store_get_chunk_by_id():
+    from storage.document_processor import DocumentChunk
+    from storage.vector_store import HybridVectorStore
+
+    store = HybridVectorStore()
+    chunk = DocumentChunk(
+        chunk_id="chunk_test_123",
+        doc_id="doc_1",
+        title="Test Document",
+        content="Sample content for testing chunk lookup.",
+    )
+    store.add_chunks([chunk])
+
+    retrieved = store.get_chunk_by_id("chunk_test_123")
+    assert retrieved is not None
+    assert retrieved.chunk_id == "chunk_test_123"
+    assert store.get_chunk_by_id("non_existent_chunk") is None
+
+
