@@ -82,3 +82,15 @@ def test_rbac_permission_evaluator():
         permissions=authz.get_effective_permissions(OrgRole.OWNER),
     )
     assert not authz.evaluate_permission(ctx_suspended, Permission.ORG_READ)
+
+
+def test_check_user_permission_helper():
+    from security.rbac import Permission as SecurityPermission
+    from security.rbac import check_user_permission, get_default_user_context
+
+    admin_ctx = get_default_user_context("ADMIN")
+    viewer_ctx = get_default_user_context("VIEWER")
+
+    assert check_user_permission(admin_ctx, SecurityPermission.EXECUTE_SQL) is True
+    assert check_user_permission(viewer_ctx, SecurityPermission.EXECUTE_SQL) is False
+
