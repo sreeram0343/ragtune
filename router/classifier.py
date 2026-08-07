@@ -88,3 +88,9 @@ class IntentClassifier:
 
         # Default fallback to UNSTRUCTURED_RAG for general questions
         return IntentCategory.UNSTRUCTURED_RAG, 0.75
+
+    def is_hybrid_query(self, query_text: str) -> bool:
+        """Determines if query requires both structured SQL and unstructured RAG retrieval."""
+        cat, _ = self.classify(query_text)
+        return cat == IntentCategory.HYBRID_ANALYTICS
+
