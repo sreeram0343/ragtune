@@ -377,6 +377,18 @@ def get_hitl_queue():
     return {"pending_count": len(tickets), "tickets": [t.model_dump() for t in tickets]}
 
 
+@app.get("/api/v1/hitl/tickets/{ticket_id}", tags=["HITL Hub"])
+def get_hitl_ticket(ticket_id: str):
+    """Retrieves a specific HITL review ticket by ticket ID."""
+    ticket = hitl_manager.get_ticket_by_id(ticket_id)
+    if not ticket:
+        raise HTTPException(
+            status_code=404, detail=f"HITL Ticket '{ticket_id}' not found"
+        )
+    return ticket.model_dump()
+
+
+
 @app.post("/api/v1/hitl/action", response_model=HITLActionResponse, tags=["HITL Hub"])
 def resolve_hitl_ticket(payload: HITLActionRequest):
     """Resolves pending HITL review ticket."""
