@@ -91,3 +91,13 @@ class HITLManager:
         return sorted(self.audit_log, key=lambda x: x.resolved_at or 0.0, reverse=True)[
             :limit
         ]
+
+    def get_ticket_by_id(self, ticket_id: str) -> HITLRequestItem | None:
+        """Retrieves a ticket by ID from either the pending queue or audit history."""
+        if ticket_id in self.pending_queue:
+            return self.pending_queue[ticket_id]
+        for item in self.audit_log:
+            if item.ticket_id == ticket_id:
+                return item
+        return None
+
