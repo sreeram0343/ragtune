@@ -40,3 +40,9 @@ def test_hitl_queue_endpoint():
     assert response.status_code == 200
     data = response.json()
     assert "pending_count" in data
+
+
+def test_hitl_ticket_get_endpoint_not_found():
+    response = client.get("/api/v1/hitl/tickets/non_existent_id")
+    assert response.status_code == 404
+
