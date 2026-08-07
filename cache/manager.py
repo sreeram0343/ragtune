@@ -100,7 +100,8 @@ class IntelligentCacheManager:
     def get_hit_rate(self) -> float:
         """Calculates combined L1 + L2 cache hit rate percentage."""
         t = self.telemetry.get_metrics()
-        total = t.get("exact_hits", 0) + t.get("semantic_hits", 0) + t.get("cache_misses", 0)
+        total = t.get("exact_hits", 0) + t.get("semantic_hits", 0) + t.get("misses", 0)
         hits = t.get("exact_hits", 0) + t.get("semantic_hits", 0)
         return round((hits / total) * 100.0, 2) if total > 0 else 0.0
+
 
