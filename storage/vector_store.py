@@ -255,3 +255,8 @@ class HybridVectorStore:
             "avg_document_length": round(self.avg_doc_len, 2),
         }
 
+    def get_chunk_by_id(self, chunk_id: str) -> DocumentChunk | None:
+        """Retrieves a specific DocumentChunk object by chunk_id."""
+        return self.chunk_map.get(chunk_id)
+
+
