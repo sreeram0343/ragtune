@@ -98,3 +98,11 @@ class OutputGovernanceEngine:
             policy_decision=policy_decision,
             explanation=policy_explanation,
         )
+
+    def is_response_allowed(self, envelope: GovernedResponseEnvelope) -> bool:
+        """Determines if a governed response envelope is cleared for release to client."""
+        return envelope.status == "SUCCESS" and envelope.policy_decision in {
+            PolicyDecision.ALLOW,
+            PolicyDecision.WARN_AND_ALLOW,
+        }
+
