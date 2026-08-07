@@ -119,3 +119,19 @@ def test_schema_validator_rejects_empty_response():
     is_valid, err = validator.validate_schema("")
     assert is_valid is False
     assert "cannot be empty" in err
+
+
+def test_is_response_allowed_evaluation():
+    engine = OutputGovernanceEngine()
+    req = _build_dummy_security_request("What is our SLA uptime commitment?")
+    raw_narrative = "RAGTUNE guarantees an enterprise SLA uptime commitment of 99.9%."
+
+    envelope = engine.govern_response(
+        security_request=req,
+        raw_response_narrative=raw_narrative,
+        citations=["SLA Policy Document p.4"],
+        quality_score=0.95,
+    )
+
+    assert engine.is_response_allowed(envelope) is True
+
