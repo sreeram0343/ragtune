@@ -206,3 +206,26 @@ def test_enterprise_cache_manager_delete():
     assert deleted is True
     assert mgr.get("test_key") is None
 
+
+def test_intelligent_cache_manager_get_hit_rate():
+    cache = IntelligentCacheManager()
+    assert cache.get_hit_rate() == 0.0
+
+    cache.get_or_compute(
+        tenant_id="t1",
+        workspace_id="w1",
+        namespace="ns",
+        payload={"query": "q1"},
+        compute_fn=lambda: "result",
+    )
+    cache.get_or_compute(
+        tenant_id="t1",
+        workspace_id="w1",
+        namespace="ns",
+        payload={"query": "q1"},
+        compute_fn=lambda: "result",
+    )
+
+    assert cache.get_hit_rate() == 50.0
+
+
